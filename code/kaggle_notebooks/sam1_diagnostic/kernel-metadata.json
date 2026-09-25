@@ -1,0 +1,19 @@
+{
+  "id": "itsasup/hsi-sam1-material-pair-diagnostic",
+  "title": "hsi-sam1-material-pair-diagnostic",
+  "code_file": "hsi_sam1_material_pair_diagnostic.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "dataset_sources": [
+    "itsasup/hyperspectral-d01-base-data-col-fix",
+    "itsasup/working-backup-plan-c-hod"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

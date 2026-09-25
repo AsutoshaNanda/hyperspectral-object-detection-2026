@@ -1,0 +1,27 @@
+{
+  "obligation_id": "V1",
+  "experiment_id": "V1",
+  "code_paths": [
+    "<project-folder>/Experiments/build_folds.py"
+  ],
+  "command": [
+    "/opt/anaconda3/bin/python",
+    "<project-folder>/Experiments/build_folds.py",
+    "--xml-dir",
+    "/kaggle/input/hyperspectral-d01-base-data-col-fix/hyperspectral-2026/data_train/data_train/Annotations/VIS",
+    "--cube-dir",
+    "/kaggle/input/hyperspectral-d01-base-data-col-fix/hyperspectral-2026/data_train/data_train/VIS",
+    "--class-file",
+    "/kaggle/input/hyperspectral-d01-base-data-col-fix/hyperspectral-2026/class.txt",
+    "--legacy-split",
+    "/kaggle/input/working-backup-plan-c-hod/working_backup_plan_C/hsi_plan_c_ratio/split_manifest.json",
+    "--output-dir",
+    "/kaggle/working/roadmap_day1/folds",
+    "--seed",
+    "42"
+  ],
+  "result_path": "<project-folder>/Experiments/results/imports/V1_day1.json",
+  "split_path": "<project-folder>/Experiments/results/kaggle/day1_v1/roadmap_day1/folds/fold_audit.json",
+  "fold": "all_three_design_folds",
+  "execution_environment": "private Kaggle GPU notebook version 1"
+}

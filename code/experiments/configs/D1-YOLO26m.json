@@ -1,0 +1,16 @@
+{
+  "obligation_id": "D1-YOLO26m",
+  "experiment_id": "D1-YOLO26m",
+  "code_paths": [
+    "<project-folder>/Experiments/evaluation/evaluate_size_ap.py",
+    "<project-folder>/Experiments/run_day1_diagnostics.py"
+  ],
+  "command": [
+    "/opt/anaconda3/bin/python",
+    "/kaggle/working/run_day1_diagnostics.py"
+  ],
+  "result_path": "<project-folder>/Experiments/results/imports/D1-YOLO26m.json",
+  "split_path": "<project-folder>/Submission/Plan_A_Recovery/evidence_v1/hsi_plan_a_recovery/split_manifest.json",
+  "fold": "legacy_validation_diagnostic",
+  "checkpoint_hash": "52800d6c16b33155e34d6e53ecdb31bb009ed0e1356d1777ca67b29d0509e291"
+}

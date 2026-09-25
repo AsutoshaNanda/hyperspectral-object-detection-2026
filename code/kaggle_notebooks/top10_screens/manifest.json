@@ -1,0 +1,37 @@
+[
+  {
+    "id": "screen-control-f0",
+    "kernel": "itsasup/hsi-screen-control-f0",
+    "folder": "Experiments/kaggle/top10_screens/screen-control-f0"
+  },
+  {
+    "id": "s1b-rgb-mean-f0",
+    "kernel": "itsasup/hsi-s1b-rgb-mean-f0",
+    "folder": "Experiments/kaggle/top10_screens/s1b-rgb-mean-f0"
+  },
+  {
+    "id": "n1-zscore-f0",
+    "kernel": "itsasup/hsi-n1-zscore-f0",
+    "folder": "Experiments/kaggle/top10_screens/n1-zscore-f0"
+  },
+  {
+    "id": "n3-snv-f0",
+    "kernel": "itsasup/hsi-n3-snv-f0",
+    "folder": "Experiments/kaggle/top10_screens/n3-snv-f0"
+  },
+  {
+    "id": "h1b-spectral-copy-f0",
+    "kernel": "itsasup/hsi-h1b-spectral-copy-f0",
+    "folder": "Experiments/kaggle/top10_screens/h1b-spectral-copy-f0"
+  },
+  {
+    "id": "m1d-multiscale010-f0",
+    "kernel": "itsasup/hsi-m1d-multiscale010-f0",
+    "folder": "Experiments/kaggle/top10_screens/m1d-multiscale010-f0"
+  },
+  {
+    "id": "p1-img1024-f0",
+    "kernel": "itsasup/hsi-p1-img1024-f0",
+    "folder": "Experiments/kaggle/top10_screens/p1-img1024-f0"
+  }
+]

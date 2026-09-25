@@ -1,0 +1,146 @@
+[
+  {
+    "experiment_id": "v1-rtdetr-c-f0",
+    "folder": "Experiments/kaggle/baseline_cv/v1-rtdetr-c-f0",
+    "kernel": "itsasup/hsi-v1-rtdetr-c-f0",
+    "config": {
+      "family": "rtdetr",
+      "model": "rtdetr-l.pt",
+      "epochs": 50,
+      "imgsz": 640,
+      "batch": 2,
+      "input_policy": "square_pad",
+      "stem_init": "random",
+      "prefix": "v1-rtdetr-c"
+    },
+    "fold": 0
+  },
+  {
+    "experiment_id": "v1-rtdetr-c-f1",
+    "folder": "Experiments/kaggle/baseline_cv/v1-rtdetr-c-f1",
+    "kernel": "itsasup/hsi-v1-rtdetr-c-f1",
+    "config": {
+      "family": "rtdetr",
+      "model": "rtdetr-l.pt",
+      "epochs": 50,
+      "imgsz": 640,
+      "batch": 2,
+      "input_policy": "square_pad",
+      "stem_init": "random",
+      "prefix": "v1-rtdetr-c"
+    },
+    "fold": 1
+  },
+  {
+    "experiment_id": "v1-rtdetr-c-f2",
+    "folder": "Experiments/kaggle/baseline_cv/v1-rtdetr-c-f2",
+    "kernel": "itsasup/hsi-v1-rtdetr-c-f2",
+    "config": {
+      "family": "rtdetr",
+      "model": "rtdetr-l.pt",
+      "epochs": 50,
+      "imgsz": 640,
+      "batch": 2,
+      "input_policy": "square_pad",
+      "stem_init": "random",
+      "prefix": "v1-rtdetr-c"
+    },
+    "fold": 2
+  },
+  {
+    "experiment_id": "v1-rtdetr-b-f0",
+    "folder": "Experiments/kaggle/baseline_cv/v1-rtdetr-b-f0",
+    "kernel": "itsasup/hsi-v1-rtdetr-b-f0",
+    "config": {
+      "family": "rtdetr",
+      "model": "rtdetr-l.pt",
+      "epochs": 50,
+      "imgsz": 640,
+      "batch": 2,
+      "input_policy": "native",
+      "stem_init": "random",
+      "prefix": "v1-rtdetr-b"
+    },
+    "fold": 0
+  },
+  {
+    "experiment_id": "v1-rtdetr-b-f1",
+    "folder": "Experiments/kaggle/baseline_cv/v1-rtdetr-b-f1",
+    "kernel": "itsasup/hsi-v1-rtdetr-b-f1",
+    "config": {
+      "family": "rtdetr",
+      "model": "rtdetr-l.pt",
+      "epochs": 50,
+      "imgsz": 640,
+      "batch": 2,
+      "input_policy": "native",
+      "stem_init": "random",
+      "prefix": "v1-rtdetr-b"
+    },
+    "fold": 1
+  },
+  {
+    "experiment_id": "v1-rtdetr-b-f2",
+    "folder": "Experiments/kaggle/baseline_cv/v1-rtdetr-b-f2",
+    "kernel": "itsasup/hsi-v1-rtdetr-b-f2",
+    "config": {
+      "family": "rtdetr",
+      "model": "rtdetr-l.pt",
+      "epochs": 50,
+      "imgsz": 640,
+      "batch": 2,
+      "input_policy": "native",
+      "stem_init": "random",
+      "prefix": "v1-rtdetr-b"
+    },
+    "fold": 2
+  },
+  {
+    "experiment_id": "v1-yolo-a-f0",
+    "folder": "Experiments/kaggle/baseline_cv/v1-yolo-a-f0",
+    "kernel": "itsasup/hsi-v1-yolo-a-f0",
+    "config": {
+      "family": "yolo",
+      "model": "yolo26m.pt",
+      "epochs": 80,
+      "imgsz": 1024,
+      "batch": 4,
+      "input_policy": "native",
+      "stem_init": "random",
+      "prefix": "v1-yolo-a"
+    },
+    "fold": 0
+  },
+  {
+    "experiment_id": "v1-yolo-a-f1",
+    "folder": "Experiments/kaggle/baseline_cv/v1-yolo-a-f1",
+    "kernel": "itsasup/hsi-v1-yolo-a-f1",
+    "config": {
+      "family": "yolo",
+      "model": "yolo26m.pt",
+      "epochs": 80,
+      "imgsz": 1024,
+      "batch": 4,
+      "input_policy": "native",
+      "stem_init": "random",
+      "prefix": "v1-yolo-a"
+    },
+    "fold": 1
+  },
+  {
+    "experiment_id": "v1-yolo-a-f2",
+    "folder": "Experiments/kaggle/baseline_cv/v1-yolo-a-f2",
+    "kernel": "itsasup/hsi-v1-yolo-a-f2",
+    "config": {
+      "family": "yolo",
+      "model": "yolo26m.pt",
+      "epochs": 80,
+      "imgsz": 1024,
+      "batch": 4,
+      "input_policy": "native",
+      "stem_init": "random",
+      "prefix": "v1-yolo-a"
+    },
+    "fold": 2
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "id": "itsasup/hsi-l1-tail-15e",
+  "title": "hsi-l1-tail-15e",
+  "code_file": "hsi-l1-tail-15e.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "itsasup/hyperspectral-d01-base-data-col-fix"
+  ],
+  "kernel_sources": [
+    "itsasup/hsi-v1-rtdetr-c-f0"
+  ],
+  "competition_sources": [],
+  "model_sources": []
+}

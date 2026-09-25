@@ -1,0 +1,19 @@
+{
+  "id": "itsasup/hsi-same-checkpoint-inference-screen",
+  "title": "hsi-same-checkpoint-inference-screen",
+  "code_file": "hsi_same_checkpoint_inference_screen.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "itsasup/hyperspectral-d01-base-data-col-fix",
+    "itsasup/working-backup-plan-c-hod"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

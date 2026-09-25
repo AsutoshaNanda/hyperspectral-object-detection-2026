@@ -1,0 +1,19 @@
+{
+  "id": "itsasup/hsi-v1-rtdetr-c-f0",
+  "title": "hsi-v1-rtdetr-c-f0",
+  "code_file": "v1-rtdetr-c-f0.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "itsasup/hyperspectral-d01-base-data-col-fix",
+    "itsasup/working-backup-plan-c-hod"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

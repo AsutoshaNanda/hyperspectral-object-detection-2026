@@ -1,0 +1,12 @@
+[
+  {
+    "id": "df1-dfine-s-f0",
+    "kernel": "itsasup/hsi-df1-dfine-s-f0",
+    "folder": "Experiments/kaggle/architecture_screens/df1-dfine-s-f0"
+  },
+  {
+    "id": "e1a-rtdetrv2-r18-f0",
+    "kernel": "itsasup/hsi-e1a-rtdetrv2-r18-f0",
+    "folder": "Experiments/kaggle/architecture_screens/e1a-rtdetrv2-r18-f0"
+  }
+]

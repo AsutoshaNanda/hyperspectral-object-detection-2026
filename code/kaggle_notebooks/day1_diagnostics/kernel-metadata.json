@@ -1,0 +1,26 @@
+{
+  "id": "itsasup/hyperspectral-roadmap-day-1-diagnostics",
+  "title": "Hyperspectral Roadmap Day 1 Diagnostics",
+  "code_file": "roadmap_day1_diagnostics.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [
+    "hyperspectral",
+    "object-detection",
+    "diagnostics"
+  ],
+  "dataset_sources": [
+    "itsasup/hyperspectral-d01-base-data-col-fix",
+    "itsasup/working-backup-plan-c-hod"
+  ],
+  "kernel_sources": [
+    "itsasup/hyperspectral-plan-b-v2-rt-detr-16-band",
+    "itsasup/hyperspectral-plan-a-yolo-recovery"
+  ],
+  "competition_sources": [],
+  "model_sources": []
+}
