@@ -1,0 +1,25 @@
+{
+  "observation": "RT-DETR square-padding result compared with the saved Plan B v2 baseline",
+  "evidence_quality": "controlled same-seed and same-split Kaggle run; one material preprocessing change",
+  "deltas": {
+    "val": {
+      "map50_95": 0.03558898592746207,
+      "map50": 0.0018995378800635843,
+      "map75": 0.021006129977211185
+    },
+    "test": {
+      "map50_95": 0.03275721418772948,
+      "map50": 0.007213730470263524,
+      "map75": 0.030426941998033086
+    }
+  },
+  "hypothesis": "supported",
+  "decision": "promote square padding",
+  "smallest_next_test": "activation-scale-preserving RGB-to-16-band stem initialization under the winning input policy",
+  "submission_gate": {
+    "metric": "holdout_mAP50_95",
+    "value": 0.6698126824248425,
+    "minimum": 0.5,
+    "passed": true
+  }
+}

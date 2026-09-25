@@ -1,0 +1,32 @@
+{
+  "observed_at_utc": "2026-09-19T09:28:46.301725+00:00",
+  "source": "https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/submissions",
+  "method": "authenticated browser accessibility tree",
+  "file_identity_limit": "UI descriptions and filenames observed; remote file bytes have not been downloaded and hash matched",
+  "submissions": [
+    {
+      "description": "RT-DETR-L Plan C : conf=0.001 and max_det=300.",
+      "filename": "submission_conf0001_max300.csv",
+      "public_score": 0.61001,
+      "status": "Complete"
+    },
+    {
+      "description": "RT-DETR-L Plan C, 50 epochs, square-padding preprocessing, random 16-band stem.",
+      "filename": "submission.csv",
+      "public_score": 0.60691,
+      "status": "Complete"
+    },
+    {
+      "description": "Plan D RT-DETR Low Confidence",
+      "filename": "submission.csv",
+      "public_score": 0.61008,
+      "status": "Complete"
+    },
+    {
+      "description": "Plan B v2 RT-DETR-L 16-band 50ep holdout 0.63706 sha256 a49abcd74b10",
+      "filename": "submission.csv",
+      "public_score": 0.60836,
+      "status": "Complete"
+    }
+  ]
+}

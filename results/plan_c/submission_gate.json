@@ -1,0 +1,6 @@
+{
+  "metric": "holdout_mAP50_95",
+  "value": 0.6698126824248425,
+  "minimum": 0.5,
+  "passed": true
+}

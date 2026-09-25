@@ -1,0 +1,5702 @@
+{
+  "schema_version": 1,
+  "source": {
+    "path": "Resources/Hyperspectral_5_Day_Experiment_Roadmap.md",
+    "sha256": "76d6ae3ecbf2c0faba9d4284c1b5bf9c7f8d19ce0bf831db2aed8d8fb1601a41"
+  },
+  "status_policy": "This registry describes obligations, not completed runs. Pending changes only with independently recorded execution evidence. Existing scores in section 2 are source claims, not imported results.",
+  "source_sections": {
+    "1": {
+      "heading": "# 1. Non-negotiable rules",
+      "start_line": 8,
+      "end_line": 30,
+      "text": "# 1. Non-negotiable rules\n\nThis roadmap has four hard rules.\n\n1. **No untested idea is called an improvement.**\n2. **External benchmark numbers are never copied into our project ranking.** External results are used only to justify running an experiment.\n3. **Every individual technique must be tested alone before it can enter a combination experiment.**\n4. **Every final submission must still use one trained model.** Same-model TTA, multi-scale inference, and cropped/sliced inference are allowed by the organizer. Predictions from different trained models must not be fused.\n\nThe organizer clarification explicitly allows:\n- one trained model,\n- public pretrained backbones if the model/source/license are declared,\n- same-model TTA,\n- same-model multi-scale inference,\n- same-model flipped/scaled/cropped inference.\n\nIt prohibits combining outputs of different trained models.\n\nSource:\n- https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/727863\n\n---\n\n"
+    },
+    "2": {
+      "heading": "# 2. Current verified starting point",
+      "start_line": 31,
+      "end_line": 55,
+      "text": "# 2. Current verified starting point\n\nThese are the only model-result numbers that are allowed to be pre-filled because they already exist in the project evidence.\n\n| Experiment | Validation mAP50-95 | Holdout mAP50-95 | Public mAP | Current interpretation |\n|---|---:|---:|---:|---|\n| YOLO26m, 16-band, 80 epochs, 1024 | 0.69894 | 0.65471 | 0.58967 | Current local/holdout leader |\n| RT-DETR-L, 16-band, 50 epochs, 640 | 0.66587 | 0.63706 | 0.60836 | Current public leader |\n| RT-DETR-L, 1 epoch | 0.28070 | not measured | 0.24195 | Smoke run only; rejected |\n\nCurrent localization evidence:\n\n| Model | Holdout mAP50 | Holdout mAP75 | Gap |\n|---|---:|---:|---:|\n| YOLO26m | 0.95172 | 0.75975 | 0.19196 |\n| RT-DETR-L | 0.94216 | 0.75336 | 0.18880 |\n\nThe large mAP50-to-mAP75 gap is direct project evidence that **localization quality is currently a major limiter**.\n\nProject evidence:\n- `06_SCORE_IMPROVEMENT_AND_FUTURE_ACTIONS(1).md`\n- `05_review_and_next_test.md`\n\n---\n\n"
+    },
+    "3": {
+      "heading": "# 3. Strict validation, explained simply",
+      "start_line": 56,
+      "end_line": 77,
+      "text": "# 3. Strict validation, explained simply\n\nThink of model development like exams.\n\n- **Training set** = the material the model studies.\n- **Validation fold** = practice exam used while choosing settings.\n- **3-fold cross-validation** = three different practice exams. A trick must work across different splits, not only one lucky split.\n- **Holdout** = final mock exam. Do not keep changing the model after looking at the holdout.\n- **Kaggle public score** = partial outside exam. Useful as confirmation, but it must not override stronger local evidence.\n\nA change is trustworthy when:\n\n1. it improves the average across folds,\n2. it does not collapse on one fold,\n3. it does not destroy a weak class,\n4. its mAP75/localization behavior makes sense,\n5. after the design is frozen, the holdout moves in the same direction.\n\nThis prevents us from saying “one lucky split increased, therefore the method is better.”\n\n---\n\n"
+    },
+    "4": {
+      "heading": "# 4. Mandatory experiment infrastructure",
+      "start_line": 78,
+      "end_line": 134,
+      "text": "# 4. Mandatory experiment infrastructure\n\nBefore running new model experiments, update the experiment runner so every experiment produces the same evidence package.\n\n## 4.1 Required output for every run\n\nEvery experiment must write:\n\n```text\nexperiment_id\nparent_experiment_id\ncode_hash\nconfig_hash\ncheckpoint_hash\nsplit_hash\npretrained_weight_name\npretrained_weight_source\npretrained_dataset\npretrained_license\ntrain_runtime\ngpu\nseed\nfold\nvalidation_map50_95\nvalidation_map50\nvalidation_map75\nAP_small\nAP_medium\nAP_large\nper_class_AP50_95\nper_class_AP50\nper_class_AP75\nprecision_per_class\nrecall_per_class\nfalse_positives_per_class\nfalse_negatives_per_class\nconfusion_matrix\nworst_present_class\nworst_present_class_AP\nlocalization_gap\nholdout_map50_95\nholdout_map75\npublic_score\nstatus\ndecision\n```\n\nAppend one immutable row to:\n\n```text\nresults/experiment_ledger.jsonl\n```\n\nNo result is typed manually if it can be produced programmatically.\n\n---\n\n"
+    },
+    "5": {
+      "heading": "# 5. V1 — Implement real group-aware 3-fold cross-validation",
+      "start_line": 135,
+      "end_line": 208,
+      "text": "# 5. V1 — Implement real group-aware 3-fold cross-validation\n\nThis is mandatory.\n\nThe current runner already has most of the machinery:\n- `--groups-file`\n- `--cv-folds 3`\n- `--cv-fold-index`\n- `--design-only`\n- split-manifest reuse\n- group-leakage assertion\n\nThe missing part is making real capture/session grouping a required input whenever that information can be derived.\n\n## 5.1 Group construction order\n\nUse this order:\n\n1. official capture/session/source identifier if present in metadata;\n2. deterministic source grouping derived from filenames/folders only if the dataset structure proves the relationship;\n3. if no real grouping information exists, fall back to one image per group and label the evidence as `image_id_only`.\n\nNever invent group relationships from visual similarity.\n\n## 5.2 Fold requirements\n\nEach fold should balance as far as possible:\n- class presence,\n- object count,\n- box-area distribution,\n- source/capture groups.\n\nNo group may occur in more than one of train/validation/holdout.\n\n## 5.3 Commands\n\n```text\n--groups-file groups.csv\n--cv-folds 3\n--cv-fold-index 0\n--design-only\n```\n\nRepeat for fold `1` and fold `2`.\n\n## 5.4 CV summary\n\nFor every experiment report:\n\n```text\nmean mAP50-95\nstandard deviation\nworst-fold mAP50-95\nmean mAP75\nworst-class AP\nAP-small\n```\n\n### Promotion rule\n\nSmall technique:\n- mean mAP50-95 gain >= 0.005, OR\n- mean mAP75 gain >= 0.005 with no mean mAP50-95 loss,\n- worst present-class AP cannot regress by more than 0.03,\n- no catastrophic fold regression.\n\nNew architecture:\n- mean mAP50-95 gain >= 0.01, OR\n- hard-class AP/localization improves materially without reducing overall mAP.\n\nThe numerical gates above are retained from the existing project roadmap, not invented here.\n\n---\n\n"
+    },
+    "6": {
+      "heading": "# 6. D1 — Add AP-small / AP-medium / AP-large diagnostics immediately",
+      "start_line": 209,
+      "end_line": 245,
+      "text": "# 6. D1 — Add AP-small / AP-medium / AP-large diagnostics immediately\n\nWe previously discussed small objects without having an actual AP-small number. Fix that before making conclusions.\n\nImplement COCO-style size AP on the **original pixel coordinates**:\n\n```text\nsmall:  box area < 32^2\nmedium: 32^2 <= area < 96^2\nlarge:  area >= 96^2\n```\n\nAlso output the raw box-area histogram so we can see whether the COCO cutoffs are sensible for this dataset.\n\nDo not rescale the ground-truth box areas before the size category is assigned.\n\nFor every current checkpoint, compute:\n- AP-small,\n- AP-medium,\n- AP-large,\n- recall-small,\n- recall-medium,\n- recall-large,\n- class × size table.\n\nRun this first on:\n- YOLO26m current checkpoint,\n- RT-DETR-L current checkpoint.\n\nOnly after these values exist should small-object changes be judged.\n\nExternal metric evidence:\n- COCO-style AP-small uses ground-truth area `< 32^2` pixels.\n- https://github.com/tensorflow/models/blob/master/research/object_detection/metrics/coco_tools.py\n\n---\n\n"
+    },
+    "7": {
+      "heading": "# 7. A1 — Missing / visible-but-unlabelled object policy",
+      "start_line": 246,
+      "end_line": 300,
+      "text": "# 7. A1 — Missing / visible-but-unlabelled object policy\n\nDo **not** silently turn visible unlabelled objects into background and do **not** silently rewrite the official validation or holdout labels.\n\nCreate an annotation-audit experiment.\n\n## 7.1 Candidate discovery\n\nRun the current best model on **training images only**.\n\nA prediction becomes an annotation candidate if:\n- it has low IoU with every official GT box,\n- confidence is above a threshold selected from validation precision, not an arbitrary number,\n- the image/box is saved for review.\n\nOutput:\n\n```text\nannotation_candidates.json\nannotation_candidates/\n    image_id_box_id_pseudo_rgb.png\n    image_id_box_id_spectral.csv\n```\n\n## 7.2 What to do with a visible object\n\nUse three labels:\n\n```text\nCONFIRMED_OBJECT\nUNCERTAIN\nNOT_OBJECT\n```\n\n- `CONFIRMED_OBJECT`: add to a **training-copy annotation set only**.\n- `UNCERTAIN`: do not use as a negative. If framework support exists, mark as ignore region; otherwise exclude the affected crop from targeted hard-negative mining.\n- `NOT_OBJECT`: may remain background.\n\nNever modify official validation/holdout GT for scoring.\n\n## 7.3 A1 experiments\n\n- **A1a:** official annotations only.\n- **A1b:** official annotations + confirmed manually reviewed missing boxes.\n- **A1c:** A1b + uncertain-region ignore handling.\n\nCompare using the same CV folds.\n\nThis directly answers the “if detected, should we add it?” question:\n**add only confirmed missing objects to the training-copy labels and prove that doing so improves CV.**\n\nThe final test/ranking prediction should still output every detection produced by the selected final model according to its selected confidence/post-processing policy.\n\n---\n\n"
+    },
+    "8": {
+      "heading": "# 8. N-series — Verify normalization instead of assuming it helps",
+      "start_line": 301,
+      "end_line": 360,
+      "text": "# 8. N-series — Verify normalization instead of assuming it helps\n\nCurrent project preprocessing is:\n\n```text\ntraining-only per-band 0.5th / 99.5th percentile\nclip\nscale to [0,1]\nwrite 8-bit TIFF\n```\n\nThis is confirmed in `submission01_yolo16M.py`.\n\nNo isolated normalization ablation exists yet. Add one.\n\nUse the exact same model, split, seed, geometry, augmentations, and epoch budget.\n\n## N0 — Existing normalization baseline\n\n```text\ntrain-only 0.5 / 99.5 percentile per band\n```\n\n## N1 — Train-only per-band z-score\n\nEstimate mean/std from training fold only. Apply the same parameters to validation/holdout/test.\n\n## N2 — Train-only robust min-max\n\nUse training-fold statistics only and scale each band consistently. Do not fit validation or test separately.\n\n## N3 — Spectral-vector SNV\n\nApply Standard Normal Variate to each 16-band spectral vector after a fixed train-derived clipping stage.\n\nThis is specifically aimed at reducing multiplicative/offset effects such as illumination/scatter changes.\n\n## N4 — Area-under-spectrum normalization\n\nNormalize each spectral vector by its spectral area/sum after fixed clipping.\n\n### Normalization decision\n\nDo not declare a normalization winner by prettier spectra.\n\nRank by:\n1. CV mean mAP50-95,\n2. mAP75,\n3. real-vs-plastic pair AP/confusion,\n4. worst class,\n5. AP-small.\n\nExternal evidence says normalization can reduce glare/distance/scatter effects, but the best method depends on the task and deep networks can react differently. Therefore every method above must be tested rather than assumed.\n\nSources:\n- https://pmc.ncbi.nlm.nih.gov/articles/PMC9541333/\n- https://pmc.ncbi.nlm.nih.gov/articles/PMC13003176/\n\n---\n\n"
+    },
+    "9": {
+      "heading": "# 9. SP-series — Spectral denoising / profile preprocessing",
+      "start_line": 361,
+      "end_line": 421,
+      "text": "# 9. SP-series — Spectral denoising / profile preprocessing\n\nQ8 requires these to be implemented one at a time.\n\nThe control is the winning normalization from the N-series.\n\n## SP0 — No extra spectral denoising\n\nBaseline.\n\n## SP1 — Minimum Noise Fraction (MNF)\n\nPipeline:\n\n```text\n16-band cube\n→ fit MNF using training fold only\n→ rank components by signal-to-noise\n→ remove only noise-dominated components selected on validation\n→ reconstruct 16-band cube\n→ detector\n```\n\nDo not fit MNF using validation, holdout, test, or ranking data.\n\nMeasure:\n- reconstructed-spectrum error,\n- CV mAP,\n- mAP75,\n- real/plastic pair confusion,\n- AP-small.\n\nEvidence:\n- MNF is a standard hyperspectral noise-reduction/dimensionality-reduction method.\n- https://pubs.usgs.gov/publication/ofr20251038/full\n- https://www.mathworks.com/help/images/ref/hypermnf.html\n\n## SP2 — Savitzky-Golay spectral smoothing\n\nApply smoothing only across the 16-band wavelength axis.\n\nBecause there are only 16 bands, test conservative valid windows only. The window/order must be logged.\n\nCompare against SP0.\n\n## SP3 — Multiplicative Scatter Correction (MSC)\n\nFit the reference spectrum from training-fold data only.\n\nCompare against SP0.\n\n## SP4 — Winning spectral preprocessing + existing train-only spectral augmentation\n\nThis is the first interaction test but it is still kept outside the large combination stage because it checks whether denoising and augmentation fight each other.\n\nExternal evidence:\n- SNV, MSC and Savitzky-Golay are established spectral preprocessing methods for scatter/noise correction.\n- https://www.frontiersin.org/journals/plant-science/articles/10.3389/fpls.2023.1211617/full\n\n---\n\n"
+    },
+    "10": {
+      "heading": "# 10. H1 — Spectral augmentation",
+      "start_line": 422,
+      "end_line": 443,
+      "text": "# 10. H1 — Spectral augmentation\n\nThe runner already contains:\n- global gain,\n- wavelength-dependent tilt,\n- per-band sensor-like noise,\n- identical spatial geometry across bands,\n- optional class-targeted copies.\n\nThe old plan had it implemented but not verified.\n\nRun:\n\n- **H1a:** no spectral augmentation.\n- **H1b:** one conservative spectral-augmentation copy.\n- **H1c:** class-targeted copy for classes proven weak in current folds.\n- **H1d:** winning SP preprocessing + H1b.\n\nNo class is targeted simply because it “sounds difficult.” Targeting must come from measured per-class AP/confusion.\n\n---\n\n"
+    },
+    "11": {
+      "heading": "# 11. S1 — Rename and test 16-band input-stem initialization",
+      "start_line": 444,
+      "end_line": 468,
+      "text": "# 11. S1 — Rename and test 16-band input-stem initialization\n\nDo not call this “patch-embedding initialization” unless the architecture actually has a patch embedding layer.\n\nFor convolutional current models call it:\n\n**16-band input-stem initialization**\n\nCurrent runner already supports:\n- `random`\n- `rgb_mean`\n\n## S1 experiments\n\n- **S1a:** random 16-band stem.\n- **S1b:** `rgb_mean` expansion with `3/16` scale correction.\n\nFor ViT-like E1 candidates, apply the same experiment to the actual patch-embedding projection:\n- random 16-channel patch projection,\n- RGB-weight expansion/mean initialization with activation-scale correction.\n\nKeep this as a mandatory experiment in the ledger.\n\n---\n\n"
+    },
+    "12": {
+      "heading": "# 12. G1 — Geometry/aspect-ratio experiment",
+      "start_line": 469,
+      "end_line": 487,
+      "text": "# 12. G1 — Geometry/aspect-ratio experiment\n\nCurrent project evidence shows RT-DETR used square resizing and geometry is a suspected localization issue.\n\nRun:\n\n- **G1a:** old/native direct square stretch.\n- **G1b:** center-pad to square, then resize.\n- **G1c:** native aspect-ratio-preserving rectangular training where the architecture supports it.\n\nLabels must be transformed exactly and predictions mapped back to original coordinates before scoring.\n\nPrimary evidence:\n- mAP75,\n- localization gap,\n- mAP50-95.\n\n---\n\n"
+    },
+    "13": {
+      "heading": "# 13. L1 — Localization fine-tuning",
+      "start_line": 488,
+      "end_line": 513,
+      "text": "# 13. L1 — Localization fine-tuning\n\nExisting runner functionality:\n\n```text\nlow-learning-rate tail\nmosaic off\nreduced geometric augmentation\nvalidation-only promotion\n```\n\nRun:\n\n- **L1a:** no localization tail.\n- **L1b:** 10 epochs low-LR tail.\n- **L1c:** 12 epochs low-LR tail.\n- **L1d:** 15 epochs low-LR tail.\n\nDo not choose on mAP50 alone.\n\nPrimary metric:\n- mAP75,\n- then mAP50-95.\n\n---\n\n"
+    },
+    "14": {
+      "heading": "# 14. DF-series — D-FINE / FDR localization experiment",
+      "start_line": 514,
+      "end_line": 555,
+      "text": "# 14. DF-series — D-FINE / FDR localization experiment\n\nThe requested “D-FINE boundary-coordinate optimization” should be implemented using the actual D-FINE mechanism rather than an invented partial interpretation.\n\nD-FINE uses:\n- Fine-grained Distribution Refinement (FDR),\n- Global Optimal Localization Self-Distillation (GO-LSD).\n\nThe official repository reports strong COCO performance and explicitly provides custom-dataset fine-tuning support.\n\nExternal evidence:\n- https://github.com/Peterande/D-FINE\n- D-FINE-S COCO: 48.5 AP\n- D-FINE-M COCO: 52.3 AP\n- D-FINE-S Objects365+COCO: 50.7 AP\n- D-FINE-M Objects365+COCO: 55.1 AP\n\nThese are **external selection facts only**, not project results.\n\n## DF1 — Full D-FINE-S, 16-band\n\n- adapt first input layer to 16 bands,\n- compare random vs RGB-expanded initialization,\n- use same folds,\n- same input normalization winner,\n- same image geometry winner.\n\n## DF2 — Full D-FINE-M, 16-band\n\nRun only after the D-FINE-S implementation is proven correct, but still run it within the individual experiment phase.\n\n## DF3 — FDR localization-head transfer study\n\nOnly after full D-FINE is working, test whether the FDR-style regression head can be integrated into the current RT-DETR branch without changing unrelated components.\n\nThis experiment must have an explicit parent:\n`RT-DETR baseline → RT-DETR + FDR-style regression`.\n\nIf integration changes too many architectural components to isolate FDR, record that and rely on the full D-FINE experiment instead. Do not falsely call a whole architecture swap a one-component ablation.\n\n---\n\n"
+    },
+    "15": {
+      "heading": "# 15. M1 — Multi-scale training",
+      "start_line": 556,
+      "end_line": 572,
+      "text": "# 15. M1 — Multi-scale training\n\nMulti-scale training must now be tested, not left as future work.\n\nRun individually on both major families:\n\n- **M1a:** YOLO baseline, multi-scale = 0.\n- **M1b:** YOLO, multi-scale = 0.10.\n- **M1c:** YOLO, multi-scale = 0.20.\n- **M1d:** best transformer detector, its supported multi-scale training policy.\n\nKeep all other settings identical.\n\nExternal/historical evidence exists from PBVS and other detection competitions, but the project decision is based only on our CV results.\n\n---\n\n"
+    },
+    "16": {
+      "heading": "# 16. T-series — Test-Time Augmentation",
+      "start_line": 573,
+      "end_line": 608,
+      "text": "# 16. T-series — Test-Time Augmentation\n\nTTA is inference only. It is not part of training.\n\nUse the exact same checkpoint.\n\nThe organizer explicitly permits flipped/scaled/cropped inference from the same trained model.\n\n## T1 — Horizontal flip\n\n```text\nnormal + horizontal flip\n```\n\n## T2 — Multi-scale inference\n\nUse the same checkpoint at a small fixed set of scales chosen before looking at holdout.\n\n## T3 — Flip + multi-scale\n\nCombine only same-checkpoint predictions.\n\n## T4 — Cropped / sliced TTA\n\nUse overlapping crops of the same image with the same checkpoint, then map boxes back and merge.\n\nThis overlaps with the small-object experiment and can be implemented through SAHI-style slicing.\n\nExternal evidence:\n- https://github.com/obss/sahi\n- SAHI is specifically designed for sliced inference/fine-tuning for small objects.\n\nTTA selection occurs on validation/CV. Holdout is checked only after the TTA policy is fixed.\n\n---\n\n"
+    },
+    "17": {
+      "heading": "# 17. SN-series — Soft-NMS",
+      "start_line": 609,
+      "end_line": 641,
+      "text": "# 17. SN-series — Soft-NMS\n\nSoft-NMS must be used where it is actually compatible: NMS-based detectors such as YOLO/Cascade R-CNN.\n\nIt is not a material classifier and should not be presented as a direct Apple-vs-Apple-Plastic solution.\n\n## SN1 — YOLO normal NMS vs Soft-NMS\n\nSame checkpoint and predictions before suppression.\n\nTest:\n- normal NMS,\n- linear Soft-NMS,\n- Gaussian Soft-NMS.\n\nTune Soft-NMS parameters only on validation folds.\n\n## SN2 — Cascade R-CNN normal NMS vs Soft-NMS\n\nRun after CR1 exists.\n\nMeasure:\n- overall mAP,\n- crowded/overlapping-object recall,\n- false positives,\n- class confusion.\n\nExternal evidence:\n- Soft-NMS decays overlapping detection confidence rather than immediately deleting boxes.\n- https://openaccess.thecvf.com/content_iccv_2017/html/Bodla_Soft-NMS_--_Improving_ICCV_2017_paper.html\n\n---\n\n"
+    },
+    "18": {
+      "heading": "# 18. SAM-series — Spectral Angle Mapper for real-vs-plastic pairs",
+      "start_line": 642,
+      "end_line": 693,
+      "text": "# 18. SAM-series — Spectral Angle Mapper for real-vs-plastic pairs\n\nThis experiment specifically targets difficult material pairs such as:\n- Egg vs Egg Plastic,\n- Apple vs Apple Plastic.\n\nSAM compares spectral **shape** through the angle between spectral vectors.\n\nExternal evidence:\n- SAM is a standard hyperspectral similarity method.\n- https://www.mathworks.com/help/images/ref/sam.html\n- A published hyperspectral food-safety study used spatially averaged spectra with SAM to distinguish contaminant types.\n- https://www.sciencedirect.com/science/article/pii/S1537511006004065\n\n## SAM1 — Diagnostic separability test\n\nFor every GT box in each training fold:\n\n1. shrink the box inward by a fixed percentage to reduce edge/background contamination;\n2. calculate robust median/trimmed-mean 16-band spectrum;\n3. create class prototypes from the training fold only;\n4. compute SAM angle to every class prototype;\n5. inspect the angle distributions for the difficult pairs.\n\nReport:\n- same-class angle distribution,\n- cross-class angle distribution,\n- AUC / pair classification accuracy using training-fold-selected threshold,\n- overlap between Apple/Apple Plastic,\n- overlap between Egg/Egg Plastic.\n\nNo holdout/test information may be used to build prototypes.\n\n## SAM2 — Same-model SAM auxiliary feature\n\nIf SAM1 demonstrates useful separation:\n\n```text\nROI 16-band spectrum\n→ SAM distances to train-derived class prototypes\n→ concatenate / fuse into the detector classification branch\n→ one final trained detector\n```\n\nDo not run SAM as a second independent classifier whose prediction is simply fused with a detector. Keep it inside the same model/pipeline so the final output still comes from one trained detector.\n\n## SAM3 — SAM + winning spectral preprocessing\n\nOnly after SP-series and SAM1 results exist.\n\n---\n\n"
+    },
+    "19": {
+      "heading": "# 19. PL-series — Pseudo-labelling experiment without waiting on test-data legality",
+      "start_line": 694,
+      "end_line": 738,
+      "text": "# 19. PL-series — Pseudo-labelling experiment without waiting on test-data legality\n\nThe competition discussion currently contains a request for clarification on DINO teacher/student use, but there is not yet a confirmed organizer reply in our evidence.\n\nTherefore we can test pseudo-labelling **now using training data**, without touching test/ranking data.\n\n## PL1 — Pseudo-label quality audit\n\n1. take a fold's training subset;\n2. hide annotations for a controlled subset;\n3. generate pseudo-labels using the current best checkpoint trained without that subset;\n4. compare pseudo-labels against the hidden known GT.\n\nMeasure:\n- pseudo-label precision,\n- recall,\n- class accuracy,\n- box IoU,\n- precision as confidence threshold varies.\n\nThis gives a real threshold curve instead of blindly copying `0.99`.\n\n## PL2 — Missing-annotation pseudo-label augmentation\n\nUse the A1 confirmed-candidate workflow:\n\n```text\nofficial training labels\n+ manually confirmed high-confidence missing boxes\n→ retrain\n→ CV\n```\n\nThis tests the useful part of pseudo-labelling using competition training data only.\n\n## PL3 — Teacher/student code path\n\nImplement teacher → student training as a separate experiment branch and run it on training-fold data.\n\nDo not use competition test/ranking pseudo-labels unless organizer permission for that exact data usage is confirmed.\n\nThe implementation and internal validation are still completed now; only the data source for a possible final pseudo-label expansion remains rule-sensitive.\n\n---\n\n"
+    },
+    "20": {
+      "heading": "# 20. CR1 — Cascade R-CNN 16-band",
+      "start_line": 739,
+      "end_line": 766,
+      "text": "# 20. CR1 — Cascade R-CNN 16-band\n\nImplement the requested Cascade R-CNN instead of leaving it in the roadmap.\n\nStart with a controlled version:\n\n```text\n16-band input\n→ pretrained backbone with 16-band stem adaptation\n→ FPN\n→ Cascade R-CNN heads\n```\n\nFirst architecture control:\n- Cascade R-CNN + ResNet-50-FPN or the closest stable MMDetection baseline,\n- same CV folds,\n- same winning normalization,\n- same image geometry.\n\nThen E1 is allowed to replace the backbone only after CR1 works.\n\nPrimary reason for this experiment is directly matched to our observed mAP75 gap: Cascade R-CNN progressively refines boxes at increasing IoU quality.\n\nEvidence:\n- https://openaccess.thecvf.com/content_cvpr_2018/html/Cai_Cascade_R-CNN_Delving_CVPR_2018_paper.html\n\n---\n\n"
+    },
+    "21": {
+      "heading": "# 21. P-series — Patch training and small-object work",
+      "start_line": 767,
+      "end_line": 805,
+      "text": "# 21. P-series — Patch training and small-object work\n\nThese experiments are no longer optional. They must be tested after D1 has measured AP-small.\n\n## P1 — Higher input resolution\n\nTest a higher resolution against the same architecture/settings.\n\n## P2 — Patch training\n\nCreate overlapping training crops.\n\nRules:\n- preserve 16-band alignment,\n- transform boxes exactly,\n- define minimum visible-box fraction,\n- log boxes clipped by crop boundaries,\n- prevent duplicate image IDs in evaluation.\n\n## P3 — Sliced inference\n\nSame trained checkpoint on overlapping crops, map predictions back, merge.\n\nThis is same-model cropped inference and is explicitly allowed by organizer clarification.\n\n## P4 — Patch training + sliced inference\n\nRun after P2/P3 individually.\n\n## P5 — High-resolution feature level\n\nFor an architecture that supports a denser feature pyramid/P2-like level, add it as a separate experiment.\n\nExternal evidence for sliced small-object detection:\n- https://github.com/obss/sahi\n- https://doi.org/10.1109/ICIP46576.2022.9897990\n\n---\n\n"
+    },
+    "22": {
+      "heading": "# 22. E1 — External pretrained model / backbone screen",
+      "start_line": 806,
+      "end_line": 950,
+      "text": "# 22. E1 — External pretrained model / backbone screen\n\nQ4 requires more than D-FINE.\n\nEvery E1 candidate must satisfy:\n\n1. public pretrained weights exist;\n2. source is recorded;\n3. pretrained dataset is recorded;\n4. license is recorded;\n5. it has published/official object-detection evidence or is explicitly marked as a pretraining-only transfer experiment;\n6. it is adapted to 16 bands using the S1 input-layer procedure;\n7. it is compared on the same fixed design fold;\n8. external benchmark AP is never inserted as our project AP.\n\nThe organizer allows public pretrained backbones when model/source/license are declared.\n\n## E1a — RT-DETRv2\n\nWhy test:\n- direct successor of RT-DETR,\n- improved training strategy,\n- official pretrained weights,\n- official Objects365 pretrained RT-DETR weights exist.\n\nSources:\n- https://arxiv.org/abs/2407.17140\n- https://github.com/lyuwenyu/RT-DETR\n\n## E1b — D-FINE-S\n\nWhy test:\n- built from RT-DETR family,\n- explicit localization refinement,\n- small 10M parameter version,\n- official custom-dataset fine-tuning support.\n\nSource:\n- https://github.com/Peterande/D-FINE\n\n## E1c — D-FINE-M\n\nWhy test:\n- stronger external detection result than S,\n- still much smaller than very large foundation backbones.\n\nSource:\n- https://github.com/Peterande/D-FINE\n\n## E1d — DINO detector + Swin backbone\n\nWhy test:\n- established end-to-end detector,\n- official 4/5-scale models,\n- strong localization/object-detection transfer.\n\nOfficial repository reports:\n- DINO 4-scale R50: 49.0 AP,\n- DINO 4-scale Swin-L: 58.0 AP,\n- DINO 5-scale Swin-L: 58.5 AP.\n\nSource:\n- https://github.com/IDEA-Research/DINO\n\n## E1e — Co-DINO / Co-DETR\n\nWhy test:\n- collaborative assignments specifically improve DETR training,\n- official released configs/checkpoints,\n- strong COCO detection evidence.\n\nOfficial repository reports:\n- Co-DINO R50 around 55 AP class,\n- Co-DINO Swin-L around 60+ AP,\n- Objects365-pretrained Swin-L variants are available.\n\nSource:\n- https://github.com/Sense-X/Co-DETR\n\n## E1f — InternImage-T/S backbone\n\nWhy test:\n- official object-detection backbone implementation,\n- pretrained ImageNet weights,\n- official Mask R-CNN detection results,\n- deformable convolution may be useful for variable object geometry.\n\nOfficial repository reports:\n- InternImage-T Mask R-CNN 3x: 49.1 box AP,\n- InternImage-S Mask R-CNN 3x: 49.7 box AP.\n\nSource:\n- https://github.com/OpenGVLab/InternImage\n\n## E1g — Swin-T/S backbone\n\nWhy test:\n- official object-detection implementation,\n- hierarchical multi-scale features,\n- stable ImageNet pretrained weights.\n\nOfficial repo reports:\n- Swin-T Mask R-CNN 3x: 46.0 box AP,\n- Swin-S Mask R-CNN 3x: 48.5 box AP.\n\nSource:\n- https://github.com/SwinTransformer/Swin-Transformer-Object-Detection\n\n## E1h — FocalNet detector/backbone\n\nWhy test:\n- official object-detection models,\n- DINO integration exists,\n- strong Object365-pretrained DINO variants exist.\n\nSource:\n- https://github.com/microsoft/FocalNet\n- https://github.com/FocalNet/FocalNet-DINO\n\n## E1i — ConvNeXt V2 pretrained backbone\n\nWhy test:\n- official FCMAE self-supervised ImageNet-1K pretrained weights,\n- modern convolutional backbone,\n- can be adapted through the same first-layer 16-band stem procedure.\n\nThis is a **pretraining/backbone transfer experiment**, not a claim that ConvNeXt V2 has already won this detection task.\n\nSource:\n- https://github.com/facebookresearch/ConvNeXt-V2\n\n## E1j — DINOv2 ViT-S/14 or ViT-B/14 pretrained backbone\n\nWhy test:\n- official pretrained self-supervised visual backbones,\n- strong transfer-oriented representation,\n- exact pretrained backbone weights are public.\n\nThis is a **pretraining transfer experiment**. It must use an object-detection head/neck and be judged only by our CV.\n\nSource:\n- https://github.com/facebookresearch/dinov2\n\n---\n\n"
+    },
+    "23": {
+      "heading": "# 23. E1 resource-efficient screening protocol",
+      "start_line": 951,
+      "end_line": 995,
+      "text": "# 23. E1 resource-efficient screening protocol\n\nThere are only five days, so every external candidate is tested but not every candidate gets three full expensive runs.\n\nUse successive evidence stages.\n\n## Stage E1-0 — Implementation smoke test\n\nEvery E1 candidate must:\n- load pretrained weights,\n- accept 16 bands,\n- perform forward pass,\n- train for one short smoke epoch,\n- produce valid predictions,\n- record GPU memory/runtime.\n\nFailure here is an implementation failure, not a performance conclusion.\n\n## Stage E1-1 — Common design-fold screen\n\nRun every candidate on:\n- the same fold,\n- same fixed short training budget,\n- same normalization,\n- same geometry,\n- same seed.\n\nCompare against **the current YOLO and RT-DETR models trained with the same shortened budget**, not against their full 80/50-epoch scores.\n\nThis prevents unfair budget comparisons.\n\n## Stage E1-2 — Full-budget verification\n\nTake the best three E1 candidates from the common design-fold screen.\n\nRun full 3-fold CV.\n\nPromotion requires the architecture gate.\n\n## Stage E1-3 — Holdout\n\nOnly the final E1 winner gets holdout evaluation.\n\n---\n\n"
+    },
+    "24": {
+      "heading": "# 24. Individual experiment registry",
+      "start_line": 996,
+      "end_line": 1043,
+      "text": "# 24. Individual experiment registry\n\nNo technique is allowed into the combination stage until it has an entry here.\n\n| ID | Technique | Individual comparison | Must run? |\n|---|---|---|---:|\n| V1 | Group-aware 3-fold CV | current split vs grouped CV diagnostics | Yes |\n| D1 | AP-small diagnostics | YOLO + RT-DETR checkpoints | Yes |\n| A1 | Missing-label handling | official vs reviewed/ignore labels | Yes |\n| N1 | z-score normalization | N0 vs N1 | Yes |\n| N2 | robust min-max | N0 vs N2 | Yes |\n| N3 | SNV | N0 vs N3 | Yes |\n| N4 | area normalization | N0 vs N4 | Yes |\n| SP1 | MNF | SP0 vs SP1 | Yes |\n| SP2 | Savitzky-Golay | SP0 vs SP2 | Yes |\n| SP3 | MSC | SP0 vs SP3 | Yes |\n| H1 | spectral augmentation | off vs on | Yes |\n| S1 | 16-band stem init | random vs rgb_mean | Yes |\n| G1 | aspect ratio | stretch vs square-pad/native | Yes |\n| L1 | localization tail | off vs low-LR tail | Yes |\n| DF1 | D-FINE-S | current transformer vs D-FINE-S | Yes |\n| DF2 | D-FINE-M | D-FINE-S vs M | Yes |\n| M1 | multi-scale training | off vs 0.10/0.20 | Yes |\n| T1 | flip TTA | off vs flip | Yes |\n| T2 | scale TTA | off vs multi-scale inference | Yes |\n| T3 | flip+scale TTA | best single TTA vs combined | Yes |\n| T4 | crop/sliced TTA | normal vs crop inference | Yes |\n| SN1 | Soft-NMS YOLO | normal NMS vs Soft-NMS | Yes |\n| SN2 | Soft-NMS Cascade | normal NMS vs Soft-NMS | Yes |\n| SAM1 | SAM diagnostic | spectral pair separability | Yes |\n| SAM2 | SAM auxiliary feature | detector vs detector+SAM feature | Yes if SAM1 has measurable separation |\n| PL1 | pseudo-label audit | pseudo labels vs hidden known GT | Yes |\n| PL2 | confirmed missing-label training | original vs augmented training labels | Yes |\n| PL3 | teacher/student path | normal vs KD on training-fold data | Yes |\n| CR1 | Cascade R-CNN | current architecture vs Cascade | Yes |\n| P1 | higher resolution | baseline vs higher res | Yes |\n| P2 | patch training | normal vs patch | Yes |\n| P3 | sliced inference | normal vs sliced | Yes |\n| P4 | patch + sliced | winning individuals combined | Yes |\n| P5 | high-res feature level | base vs extra level | Yes where architecture supports it |\n| E1a-j | external model screen | fixed design fold | Yes |\n\n`SAM2` is conditional only on **SAM1 evidence existing** because inserting a demonstrably non-separating feature into the detector would not test the hypothesis requested. The SAM diagnostic itself is mandatory.\n\n`P5` must be run on at least one architecture that actually supports a high-resolution feature level. It must not be silently skipped because the current model does not expose one.\n\n---\n\n"
+    },
+    "25": {
+      "heading": "# 25. Result table for individual experiments",
+      "start_line": 1044,
+      "end_line": 1062,
+      "text": "# 25. Result table for individual experiments\n\nPopulate automatically.\n\n| Rank | ID | CV mean mAP50-95 | Worst fold | mAP75 | AP-small | Worst-class AP | Runtime | Decision |\n|---:|---|---:|---:|---:|---:|---:|---:|---|\n| | | | | | | | | |\n\nSort by:\n1. CV mean mAP50-95 descending,\n2. worst-fold mAP50-95 descending,\n3. mAP75 descending,\n4. worst-class AP descending,\n5. AP-small descending.\n\nDo not create a made-up weighted score.\n\n---\n\n"
+    },
+    "26": {
+      "heading": "# 26. Combination stage",
+      "start_line": 1063,
+      "end_line": 1091,
+      "text": "# 26. Combination stage\n\nThe combination stage begins only after the individual table has real results.\n\nDefine the following result-selected tokens:\n\n```text\nARCH*   = best legal single architecture by verified CV\nPRE*    = best normalization/spectral preprocessing\nSTEM*   = best 16-band input initialization\nGEO*    = best geometry/aspect policy\nLOC*    = best localization method\nAUG*    = best augmentation policy\nSCALE*  = best multi-scale training setting\nSMALL*  = best small-object technique\nCLASS*  = best material/class technique\nLABEL*  = best training-label policy\nTTA*    = best same-checkpoint TTA\nNMS*    = best NMS method on the best NMS-based detector\n```\n\nA token can be used only if its individual result is not worse than its control under the promotion rules.\n\nThe following 7 sets contain 5 experiments each: **35 combination experiments**.\n\nEvery combination gets at least one fixed design-fold run. The best combinations then receive full CV.\n\n---\n\n"
+    },
+    "27": {
+      "heading": "# 27. Combination Set A — Spectral/input combinations",
+      "start_line": 1092,
+      "end_line": 1125,
+      "text": "# 27. Combination Set A — Spectral/input combinations\n\nUse `ARCH*`.\n\n## A-C1\n```text\nARCH* + PRE*\n```\n\n## A-C2\n```text\nARCH* + PRE* + STEM*\n```\n\n## A-C3\n```text\nARCH* + PRE* + AUG*\n```\n\n## A-C4\n```text\nARCH* + PRE* + STEM* + AUG*\n```\n\n## A-C5\n```text\nARCH* + PRE* + CLASS*\n```\n\nGoal:\nverify whether separately useful spectral/input techniques remain useful together.\n\n---\n\n"
+    },
+    "28": {
+      "heading": "# 28. Combination Set B — Geometry/localization combinations",
+      "start_line": 1126,
+      "end_line": 1157,
+      "text": "# 28. Combination Set B — Geometry/localization combinations\n\n## B-C1\n```text\nARCH* + GEO*\n```\n\n## B-C2\n```text\nARCH* + LOC*\n```\n\n## B-C3\n```text\nARCH* + SCALE*\n```\n\n## B-C4\n```text\nARCH* + GEO* + LOC*\n```\n\n## B-C5\n```text\nARCH* + GEO* + LOC* + SCALE*\n```\n\nPrimary metric:\nmAP75 first as a diagnostic, mAP50-95 as the promotion metric.\n\n---\n\n"
+    },
+    "29": {
+      "heading": "# 29. Combination Set C — Small-object combinations",
+      "start_line": 1158,
+      "end_line": 1194,
+      "text": "# 29. Combination Set C — Small-object combinations\n\nUse the best architecture where AP-small is measurable and meaningful.\n\n## C-C1\n```text\nARCH* + higher resolution winner\n```\n\n## C-C2\n```text\nARCH* + patch training winner\n```\n\n## C-C3\n```text\nARCH* + sliced/crop inference winner\n```\n\n## C-C4\n```text\nARCH* + patch training + sliced inference\n```\n\n## C-C5\n```text\nARCH* + SMALL* + SCALE*\n```\n\nPrimary diagnostics:\n- AP-small,\n- small-object recall,\n- overall mAP,\n- duplicate-box false positives.\n\n---\n\n"
+    },
+    "30": {
+      "heading": "# 30. Combination Set D — Inference/post-processing combinations",
+      "start_line": 1195,
+      "end_line": 1231,
+      "text": "# 30. Combination Set D — Inference/post-processing combinations\n\nTwo branches are allowed because NMS is not equally meaningful for every architecture.\n\nUse:\n- `ARCH_NMS*` = best NMS-based model,\n- `ARCH_DETR*` = best end-to-end/DETR-style model.\n\n## D-C1\n```text\nARCH* + flip TTA\n```\n\n## D-C2\n```text\nARCH* + multi-scale TTA\n```\n\n## D-C3\n```text\nARCH* + TTA*\n```\n\n## D-C4\n```text\nARCH_NMS* + NMS*\n```\n\n## D-C5\n```text\nARCH_NMS* + TTA* + NMS*\n```\n\nIf the overall `ARCH*` is a DETR model, D-C4/D-C5 still run on `ARCH_NMS*`; they are not dropped.\n\n---\n\n"
+    },
+    "31": {
+      "heading": "# 31. Combination Set E — Material/class and annotation combinations",
+      "start_line": 1232,
+      "end_line": 1264,
+      "text": "# 31. Combination Set E — Material/class and annotation combinations\n\n## E-C1\n```text\nARCH* + CLASS*\n```\n\n## E-C2\n```text\nARCH* + LABEL*\n```\n\n## E-C3\n```text\nARCH* + CLASS* + AUG*\n```\n\n## E-C4\n```text\nARCH* + CLASS* + LABEL*\n```\n\n## E-C5\n```text\nARCH* + CLASS* + LABEL* + AUG*\n```\n\nThe difficult-pair report must explicitly include:\n- Apple vs Apple Plastic confusion,\n- Egg vs Egg Plastic confusion.\n\n---\n\n"
+    },
+    "32": {
+      "heading": "# 32. Combination Set F — Architecture / pretrained-weight combinations",
+      "start_line": 1265,
+      "end_line": 1297,
+      "text": "# 32. Combination Set F — Architecture / pretrained-weight combinations\n\nUse the verified E1 ranking.\n\n## F-C1\n```text\nE1 rank-1 architecture + PRE* + STEM*\n```\n\n## F-C2\n```text\nE1 rank-2 architecture + PRE* + STEM*\n```\n\n## F-C3\n```text\nE1 rank-1 + GEO* + LOC*\n```\n\n## F-C4\n```text\nE1 rank-1 + SCALE* + SMALL*\n```\n\n## F-C5\n```text\nE1 rank-1 + PRE* + CLASS* + TTA*\n```\n\nNo external benchmark number is used in ranking these.\n\n---\n\n"
+    },
+    "33": {
+      "heading": "# 33. Combination Set G — Final evidence-selected mixes",
+      "start_line": 1298,
+      "end_line": 1335,
+      "text": "# 33. Combination Set G — Final evidence-selected mixes\n\nPick winners from Sets A-F.\n\n## G-C1\n```text\nbest A + best B\n```\n\n## G-C2\n```text\nbest A + best C\n```\n\n## G-C3\n```text\nbest B + best D\n```\n\n## G-C4\n```text\nbest A + best B + best D\n```\n\n## G-C5\n```text\nbest compatible components from A + B + C + D + E\n```\n\nG-C5 is not “turn everything on.”\n\nEvery component in it must:\n- have passed individually,\n- have remained useful in its combination set,\n- be compatible with the same single trained model.\n\n---\n\n"
+    },
+    "34": {
+      "heading": "# 34. Combination screening and verification",
+      "start_line": 1336,
+      "end_line": 1377,
+      "text": "# 34. Combination screening and verification\n\nRunning all 35 combinations for full 3-fold training would waste the five-day window.\n\nUse a fair successive-evidence process without leaving any experiment unexecuted.\n\n## Stage C0 — Every combination runs\n\nAll 35 combinations run on the exact same fixed design fold with the exact same shortened budget.\n\nThe corresponding baseline must also be trained at the same shortened budget.\n\nTherefore every combination has a real result.\n\n## Stage C1 — Top 15\n\nSort the 35 by design-fold mAP50-95, then verify:\n- mAP75,\n- AP-small,\n- worst-class AP,\n- difficult-pair confusion.\n\nRun top 15 on a second fold.\n\n## Stage C2 — Top 10\n\nRun top 10 on all three folds at the normal full budget.\n\n## Stage C3 — Top 3\n\nFreeze settings.\n\nEvaluate top 3 once on the untouched holdout.\n\n## Stage C4 — Final candidate\n\nChoose one final model/checkpoint/config.\n\nPublic Kaggle score is confirmation, not the selector.\n\n---\n\n"
+    },
+    "35": {
+      "heading": "# 35. Final ranking procedure",
+      "start_line": 1378,
+      "end_line": 1408,
+      "text": "# 35. Final ranking procedure\n\nProduce three separate rankings.\n\n## 35.1 Individual-technique ranking\n\nOnly individual ablations.\n\n## 35.2 Combination ranking\n\nOnly combination experiments.\n\n## 35.3 Finalist ranking\n\nOnly full 3-fold + holdout finalists.\n\nFinalist sort order:\n\n1. CV mean mAP50-95,\n2. worst-fold mAP50-95,\n3. holdout mAP50-95 direction,\n4. mean mAP75,\n5. worst-class AP,\n6. AP-small,\n7. difficult-pair confusion,\n8. runtime/memory only as a final tie-breaker.\n\nNever sort primarily by public leaderboard.\n\n---\n\n"
+    },
+    "36": {
+      "heading": "# 36. Five-day execution schedule",
+      "start_line": 1409,
+      "end_line": 1484,
+      "text": "# 36. Five-day execution schedule\n\nThis is a user deadline, not an assumption about the Kaggle closing date.\n\n## Day 1 — Make measurements trustworthy\n\nImplement/run:\n- V1 group-aware 3-fold CV,\n- D1 AP-small/AP-medium/AP-large,\n- current YOLO/RT-DETR diagnostic rerun,\n- A1 annotation candidate audit,\n- N0-N4 normalization,\n- cheap TTA/Soft-NMS inference tests where checkpoints allow it.\n\nRequired end-of-day outputs:\n- fixed fold manifests,\n- AP-small result for both current models,\n- normalization ranking,\n- annotation-candidate list,\n- updated ledger.\n\n## Day 2 — Spectral/input/localization ablations\n\nRun:\n- SP1-SP4,\n- H1,\n- S1,\n- G1,\n- L1,\n- M1,\n- SAM1,\n- SAM2 if SAM1 proves separation,\n- PL1.\n\nRequired end-of-day outputs:\n- spectral preprocessing ranking,\n- stem result,\n- multi-scale result,\n- SAM difficult-pair report,\n- pseudo-label quality curve.\n\n## Day 3 — Requested architectures and external-model screen\n\nRun:\n- CR1 Cascade R-CNN,\n- DF1/DF2 D-FINE,\n- E1a-j smoke tests,\n- E1a-j common design-fold screening,\n- P1-P5 small-object experiments,\n- PL2/PL3.\n\nPromote top three E1 candidates for full verification.\n\n## Day 4 — Combination sets\n\nRun all 35 shortened-budget combination experiments:\n- Sets A-G.\n\nRun second fold for top 15.\n\nBegin full-budget 3-fold runs for top 10.\n\n## Day 5 — Final verification\n\nFinish:\n- full 3-fold top 10,\n- holdout top 3,\n- final sorted tables,\n- final config freeze,\n- final one-model refit/checkpoint,\n- legal same-model inference policy,\n- README with pretrained source/license declaration,\n- test/ranking CSV audit.\n\n---\n\n"
+    },
+    "37": {
+      "heading": "# 37. Required implementation modules",
+      "start_line": 1485,
+      "end_line": 1546,
+      "text": "# 37. Required implementation modules\n\nKeep the existing runner, but split new functionality so experiments remain auditable.\n\nSuggested structure:\n\n```text\nSubmission/\n  submission01_yolo16M.py\n\nExperiments/\n  configs/\n  run_experiment.py\n  build_groups.py\n  build_folds.py\n\n  evaluation/\n    evaluate_detection.py\n    evaluate_size_ap.py\n    evaluate_material_pairs.py\n    rank_experiments.py\n\n  preprocessing/\n    normalization.py\n    mnf.py\n    spectral_filters.py\n    spectral_augmentation.py\n\n  annotations/\n    find_missing_candidates.py\n    review_annotations.py\n    build_augmented_labels.py\n\n  models/\n    input_stem_16band.py\n    cascade_rcnn_16band.py\n    dfine_16band.py\n    external_backbones.py\n    sam_auxiliary.py\n\n  inference/\n    tta.py\n    multiscale.py\n    sliced_inference.py\n    soft_nms.py\n\n  pseudo_labels/\n    generate.py\n    evaluate.py\n    teacher_student.py\n\n  results/\n    experiment_ledger.jsonl\n    individual_results.csv\n    combination_results.csv\n    finalist_results.csv\n```\n\nEach experiment config must describe exactly one individual change or one explicitly named combination.\n\n---\n\n"
+    },
+    "38": {
+      "heading": "# 38. Stop conditions",
+      "start_line": 1547,
+      "end_line": 1562,
+      "text": "# 38. Stop conditions\n\nDo not stop an experiment because an external paper was on RGB instead of hyperspectral. That is exactly what our controlled 16-band experiment is meant to verify.\n\nAn experiment may stop only for one of these reasons:\n\n1. implementation cannot produce valid finite predictions;\n2. GPU/runtime makes the configured model impossible to execute under the available hardware, in which case run the closest smaller official variant and record the exact failure;\n3. it violates the organizer's confirmed rule;\n4. it is mathematically incompatible with that architecture, in which case run it on the closest compatible architecture as already specified;\n5. a prerequisite diagnostic explicitly disproves the premise, for example SAM1 shows no material-pair separability. The diagnostic result itself counts as the completed experiment.\n\nEvery stop must still create a ledger record.\n\n---\n\n"
+    },
+    "39": {
+      "heading": "# 39. Evidence rules",
+      "start_line": 1563,
+      "end_line": 1600,
+      "text": "# 39. Evidence rules\n\nFor every conclusion write:\n\n```text\nObservation:\nEvidence source:\nControlled change:\nCV result:\nWorst fold:\nmAP75:\nAP-small:\nWorst class:\nMaterial-pair result:\nDecision:\nNext experiment:\n```\n\nForbidden wording:\n\n```text\n\"should improve\"\n\"probably better\"\n\"paper says it is better, so use it\"\n\"newer model, therefore better\"\n```\n\nAllowed wording:\n\n```text\n\"External evidence justified testing it.\"\n\"Our fixed-fold result was X.\"\n\"Our 3-fold mean was Y.\"\n\"It passed/failed the predefined gate.\"\n```\n\n---\n\n"
+    },
+    "40": {
+      "heading": "# 40. External evidence catalogue",
+      "start_line": 1601,
+      "end_line": 1686,
+      "text": "# 40. External evidence catalogue\n\nThese sources justify experiments. They do not count as project results.\n\n## Competition\n- Competition overview:  \n  https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026\n- Single-model / TTA / pretrained clarification:  \n  https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/727863\n\n## D-FINE\n- Official implementation and model zoo:  \n  https://github.com/Peterande/D-FINE\n\n## RT-DETRv2\n- Paper:  \n  https://arxiv.org/abs/2407.17140\n- Official repository:  \n  https://github.com/lyuwenyu/RT-DETR\n\n## DINO detector\n- Official repository:  \n  https://github.com/IDEA-Research/DINO\n\n## Co-DETR / Co-DINO\n- Official repository:  \n  https://github.com/Sense-X/Co-DETR\n\n## InternImage\n- Official repository:  \n  https://github.com/OpenGVLab/InternImage\n\n## Swin\n- Official object-detection repository:  \n  https://github.com/SwinTransformer/Swin-Transformer-Object-Detection\n\n## FocalNet\n- Official repository:  \n  https://github.com/microsoft/FocalNet\n- Detection/DINO integration:  \n  https://github.com/FocalNet/FocalNet-DINO\n\n## ConvNeXt V2\n- Official repository:  \n  https://github.com/facebookresearch/ConvNeXt-V2\n\n## DINOv2\n- Official repository:  \n  https://github.com/facebookresearch/dinov2\n\n## Cascade R-CNN\n- CVPR paper:  \n  https://openaccess.thecvf.com/content_cvpr_2018/html/Cai_Cascade_R-CNN_Delving_CVPR_2018_paper.html\n\n## Soft-NMS\n- ICCV paper:  \n  https://openaccess.thecvf.com/content_iccv_2017/html/Bodla_Soft-NMS_--_Improving_ICCV_2017_paper.html\n\n## Small-object slicing / SAHI\n- Official repository:  \n  https://github.com/obss/sahi\n- Paper:  \n  https://doi.org/10.1109/ICIP46576.2022.9897990\n\n## MNF\n- USGS PyHAT guide:  \n  https://pubs.usgs.gov/publication/ofr20251038/full\n- MATLAB reference:  \n  https://www.mathworks.com/help/images/ref/hypermnf.html\n\n## Spectral Angle Mapper\n- MATLAB reference:  \n  https://www.mathworks.com/help/images/ref/sam.html\n- Hyperspectral contaminant-classification study:  \n  https://www.sciencedirect.com/science/article/pii/S1537511006004065\n\n## Spectral normalization / preprocessing\n- Comparison of HSI preprocessing techniques:  \n  https://pmc.ncbi.nlm.nih.gov/articles/PMC9541333/\n- Review of spectral normalization:  \n  https://pmc.ncbi.nlm.nih.gov/articles/PMC13003176/\n- MSC/SNV/Savitzky-Golay example:  \n  https://www.frontiersin.org/journals/plant-science/articles/10.3389/fpls.2023.1211617/full\n\n---\n\n"
+    },
+    "41": {
+      "heading": "# 41. Project evidence catalogue",
+      "start_line": 1687,
+      "end_line": 1715,
+      "text": "# 41. Project evidence catalogue\n\nUse these existing project files as the starting evidence:\n\n```text\n05_review_and_next_test.md\n06_SCORE_IMPROVEMENT_AND_FUTURE_ACTIONS(1).md\n01_discussion_insights.md\n03_architecture_roadmap.md\n04_submission01_README.md\nhyperspectral_integrated_top_solutions(1).md\nsubmission01_yolo16M.py\nexperiment_ledger.jsonl\n```\n\nKnown implemented features already documented in the latest runner:\n- square-padding/aspect control,\n- `random` / `rgb_mean` input stem,\n- optional 3-fold group CV,\n- holdout protection,\n- spectral augmentation,\n- localization tail,\n- YOLO same-checkpoint TTA,\n- detailed per-class/localization diagnostics.\n\nThe roadmap above turns the remaining items into mandatory measured experiments.\n\n---\n\n"
+    },
+    "42": {
+      "heading": "# 42. Definition of done",
+      "start_line": 1716,
+      "end_line": 1754,
+      "text": "# 42. Definition of done\n\nThis five-day roadmap is complete only when all of the following exist:\n\n- [ ] Real group-aware 3-fold CV or explicit evidence that only `image_id_only` grouping is possible.\n- [ ] AP-small/AP-medium/AP-large for current YOLO and RT-DETR.\n- [ ] Missing-annotation audit and controlled label experiment.\n- [ ] Normalization ablation results.\n- [ ] MNF result.\n- [ ] Spectral smoothing/scatter-correction results.\n- [ ] Spectral augmentation result.\n- [ ] 16-band stem initialization result.\n- [ ] Geometry result.\n- [ ] Localization-tail result.\n- [ ] D-FINE result.\n- [ ] Multi-scale training result.\n- [ ] TTA results.\n- [ ] Soft-NMS results.\n- [ ] SAM difficult-pair analysis and, if separable, SAM auxiliary result.\n- [ ] Pseudo-label quality audit.\n- [ ] Pseudo-label / missing-label training result.\n- [ ] Teacher/student implementation result on training-fold data.\n- [ ] Cascade R-CNN result.\n- [ ] Patch-training result.\n- [ ] Sliced inference result.\n- [ ] Higher-resolution/small-object result.\n- [ ] E1 external-model screen for every listed candidate.\n- [ ] 35 combination design-fold results.\n- [ ] Top-15 second-fold results.\n- [ ] Top-10 full 3-fold results.\n- [ ] Top-3 untouched holdout results.\n- [ ] Final sorted individual table.\n- [ ] Final sorted combination table.\n- [ ] Final sorted finalist table.\n- [ ] One final legal trained model selected from evidence.\n- [ ] Final pretrained model/source/license declaration.\n- [ ] Final test/ranking submission audit.\n\nNo unchecked item may be described as “implemented and verified.”\n"
+    }
+  },
+  "required_ledger_fields": [
+    "experiment_id",
+    "parent_experiment_id",
+    "code_hash",
+    "config_hash",
+    "checkpoint_hash",
+    "split_hash",
+    "pretrained_weight_name",
+    "pretrained_weight_source",
+    "pretrained_dataset",
+    "pretrained_license",
+    "train_runtime",
+    "gpu",
+    "seed",
+    "fold",
+    "validation_map50_95",
+    "validation_map50",
+    "validation_map75",
+    "AP_small",
+    "AP_medium",
+    "AP_large",
+    "per_class_AP50_95",
+    "per_class_AP50",
+    "per_class_AP75",
+    "precision_per_class",
+    "recall_per_class",
+    "false_positives_per_class",
+    "false_negatives_per_class",
+    "confusion_matrix",
+    "worst_present_class",
+    "worst_present_class_AP",
+    "localization_gap",
+    "holdout_map50_95",
+    "holdout_map75",
+    "public_score",
+    "status",
+    "decision"
+  ],
+  "global_constraints": {
+    "source_sections": [
+      "1",
+      "3",
+      "4",
+      "5",
+      "24",
+      "25",
+      "26",
+      "35",
+      "38",
+      "39"
+    ],
+    "single_trained_model": true,
+    "cross_model_prediction_fusion": false,
+    "cv_folds": 3,
+    "small_technique_map_gain_gte": 0.005,
+    "small_technique_map75_gain_gte_if_no_map_loss": 0.005,
+    "worst_present_class_max_regression": 0.03,
+    "architecture_map_gain_gte": 0.01,
+    "architecture_alternative_gate": "Hard-class AP/localization improves materially without reducing overall mAP",
+    "unresolved_gate_definitions": [
+      "Catastrophic fold regression threshold is not numerically specified",
+      "Material hard-class/localization gain is not numerically specified"
+    ],
+    "individual_ranking": [
+      "cv_mean_map50_95_desc",
+      "worst_fold_map50_95_desc",
+      "map75_desc",
+      "worst_class_ap_desc",
+      "ap_small_desc"
+    ],
+    "finalist_ranking_source": "35",
+    "stop_reasons_source": "38"
+  },
+  "experiments": [
+    {
+      "id": "V1",
+      "title": "Group-aware 3-fold CV",
+      "family": "V1",
+      "kind": "infrastructure",
+      "status": "pending",
+      "source_sections": [
+        "5"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "cv_folds": 3,
+        "design_only": true,
+        "fold_indices": [
+          0,
+          1,
+          2
+        ]
+      },
+      "unresolved_settings": [
+        "Verified capture/session grouping or documented image_id_only fallback"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "D1-YOLO26m",
+      "title": "Current checkpoint size diagnostics: YOLO26m",
+      "family": "D1",
+      "kind": "diagnostic",
+      "status": "pending",
+      "source_sections": [
+        "6"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "area_coordinates": "original_pixels",
+        "small_area_lt": 1024,
+        "medium_area_gte": 1024,
+        "medium_area_lt": 9216,
+        "large_area_gte": 9216
+      },
+      "unresolved_settings": [
+        "Checkpoint path and hash"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "D1-RT-DETR-L",
+      "title": "Current checkpoint size diagnostics: RT-DETR-L",
+      "family": "D1",
+      "kind": "diagnostic",
+      "status": "pending",
+      "source_sections": [
+        "6"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "area_coordinates": "original_pixels",
+        "small_area_lt": 1024,
+        "medium_area_gte": 1024,
+        "medium_area_lt": 9216,
+        "large_area_gte": 9216
+      },
+      "unresolved_settings": [
+        "Checkpoint path and hash"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "A1-audit",
+      "title": "Training-only missing-annotation candidate discovery and review",
+      "family": "A1",
+      "kind": "diagnostic",
+      "status": "pending",
+      "source_sections": [
+        "7"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Confidence threshold selected from validation precision",
+        "Low-IoU candidate threshold",
+        "Manual candidate reviews"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "A1a",
+      "title": "Official annotations only",
+      "family": "A1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "7"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "A1b",
+      "title": "Official plus confirmed manually reviewed missing boxes",
+      "family": "A1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "7"
+      ],
+      "prerequisites": [
+        "A1-audit",
+        "A1a"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "Only reviewed confirmed boxes enter training-copy labels; validation/holdout GT unchanged",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "A1c",
+      "title": "A1b plus uncertain-region ignore handling",
+      "family": "A1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "7"
+      ],
+      "prerequisites": [
+        "A1-audit",
+        "A1a"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "Only reviewed confirmed boxes enter training-copy labels; validation/holdout GT unchanged",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "N0",
+      "title": "Existing normalization baseline",
+      "family": "N",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "8"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "percentile_low": 0.5,
+        "percentile_high": 99.5,
+        "fit_scope": "training_fold",
+        "clip": true,
+        "scale": [
+          0,
+          1
+        ],
+        "storage": "8-bit TIFF"
+      },
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "N1",
+      "title": "Training-only per-band z-score",
+      "family": "N",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "8"
+      ],
+      "prerequisites": [
+        "N0"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Numeric storage preserving z-score values"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "N2",
+      "title": "Training-only robust min-max",
+      "family": "N",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "8"
+      ],
+      "prerequisites": [
+        "N0"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Robust statistics definition and limits"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "N3",
+      "title": "Per-vector SNV after train-derived clipping",
+      "family": "N",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "8"
+      ],
+      "prerequisites": [
+        "N0"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Fixed clipping parameters",
+        "Numeric storage preserving SNV values"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "N4",
+      "title": "Area-under-spectrum normalization after fixed clipping",
+      "family": "N",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "8"
+      ],
+      "prerequisites": [
+        "N0"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Fixed clipping parameters",
+        "Spectral sum or wavelength-integrated area definition"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SP0",
+      "title": "No extra spectral denoising",
+      "family": "SP",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "9"
+      ],
+      "prerequisites": [
+        "N0",
+        "N1",
+        "N2",
+        "N3",
+        "N4"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "Normalization winner chosen from real CV results",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SP1",
+      "title": "Train-only MNF fit and reconstruction",
+      "family": "SP",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "9"
+      ],
+      "prerequisites": [
+        "SP0"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Validation-selected noise component removal"
+      ],
+      "gate": "Normalization winner chosen from real CV results",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SP2",
+      "title": "Savitzky-Golay across wavelength axis",
+      "family": "SP",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "9"
+      ],
+      "prerequisites": [
+        "SP0"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Conservative valid window and polynomial order"
+      ],
+      "gate": "Normalization winner chosen from real CV results",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SP3",
+      "title": "MSC with train-only reference spectrum",
+      "family": "SP",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "9"
+      ],
+      "prerequisites": [
+        "SP0"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "Normalization winner chosen from real CV results",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SP4",
+      "title": "Winning spectral preprocessing plus train-only spectral augmentation",
+      "family": "SP",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "9"
+      ],
+      "prerequisites": [
+        "SP0",
+        "SP1",
+        "SP2",
+        "SP3",
+        "H1b"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Measured spectral preprocessing winner"
+      ],
+      "gate": "Normalization winner chosen from real CV results",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "H1a",
+      "title": "No spectral augmentation",
+      "family": "H1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "10"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "H1b",
+      "title": "One conservative spectral-augmentation copy",
+      "family": "H1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "10"
+      ],
+      "prerequisites": [
+        "H1a"
+      ],
+      "settings": {
+        "copies": 1
+      },
+      "unresolved_settings": [
+        "Conservative augmentation parameters"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "H1c",
+      "title": "Class-targeted spectral copy for measured weak classes",
+      "family": "H1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "10"
+      ],
+      "prerequisites": [
+        "H1a"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Conservative augmentation parameters"
+      ],
+      "gate": "Target classes from measured per-class AP/confusion",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "H1d",
+      "title": "Winning SP preprocessing plus H1b",
+      "family": "H1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "10"
+      ],
+      "prerequisites": [
+        "SP1",
+        "SP2",
+        "SP3",
+        "H1b"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "S1a",
+      "title": "Random 16-band convolutional input stem",
+      "family": "S1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "11"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "initialization": "random",
+        "input_channels": 16
+      },
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "S1b",
+      "title": "RGB mean 16-band convolutional input stem",
+      "family": "S1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "11"
+      ],
+      "prerequisites": [
+        "S1a"
+      ],
+      "settings": {
+        "initialization": "rgb_mean",
+        "scale_correction": "3/16",
+        "input_channels": 16
+      },
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "S1-ViT-random",
+      "title": "Actual ViT patch projection: random",
+      "family": "S1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "11"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "input_channels": 16,
+        "initialization": "random"
+      },
+      "unresolved_settings": [],
+      "gate": "Apply to each ViT-like E1 candidate with an actual patch-embedding projection",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "S1-ViT-rgb_expanded",
+      "title": "Actual ViT patch projection: rgb_expanded",
+      "family": "S1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "11"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "input_channels": 16,
+        "initialization": "rgb_expanded"
+      },
+      "unresolved_settings": [
+        "Activation-scale correction for RGB-expanded projection"
+      ],
+      "gate": "Apply to each ViT-like E1 candidate with an actual patch-embedding projection",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "G1a",
+      "title": "Native direct square stretch",
+      "family": "G1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "12"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "G1b",
+      "title": "Center-pad to square then resize",
+      "family": "G1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "12"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "G1c",
+      "title": "Native aspect-preserving rectangular training",
+      "family": "G1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "12"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "Use compatible architecture for rectangular training",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "L1a",
+      "title": "Localization fine-tuning: 0 tail epochs",
+      "family": "L1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "13"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "tail_epochs": 0
+      },
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "L1b",
+      "title": "Localization fine-tuning: 10 tail epochs",
+      "family": "L1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "13"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "tail_epochs": 10
+      },
+      "unresolved_settings": [
+        "Low learning rate",
+        "Reduced geometric augmentation configuration"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "L1c",
+      "title": "Localization fine-tuning: 12 tail epochs",
+      "family": "L1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "13"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "tail_epochs": 12
+      },
+      "unresolved_settings": [
+        "Low learning rate",
+        "Reduced geometric augmentation configuration"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "L1d",
+      "title": "Localization fine-tuning: 15 tail epochs",
+      "family": "L1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "13"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "tail_epochs": 15
+      },
+      "unresolved_settings": [
+        "Low learning rate",
+        "Reduced geometric augmentation configuration"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "DF1",
+      "title": "Full 16-band D-FINE-S",
+      "family": "DF",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "14"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Architecture-specific config and pretrained provenance"
+      ],
+      "gate": "Measured normalization and geometry winners; full D-FINE correctness before DF2/DF3",
+      "variants": [
+        "DF1-random",
+        "DF1-rgb_expanded"
+      ],
+      "evidence": null
+    },
+    {
+      "id": "DF2",
+      "title": "Full 16-band D-FINE-M",
+      "family": "DF",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "14"
+      ],
+      "prerequisites": [
+        "DF1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Architecture-specific config and pretrained provenance"
+      ],
+      "gate": "Measured normalization and geometry winners; full D-FINE correctness before DF2/DF3",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "DF3",
+      "title": "RT-DETR plus isolated FDR-style regression transfer",
+      "family": "DF",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "14"
+      ],
+      "prerequisites": [
+        "DF1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Architecture-specific config and pretrained provenance"
+      ],
+      "gate": "Measured normalization and geometry winners; full D-FINE correctness before DF2/DF3",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "DF1-random",
+      "title": "D-FINE-S 16-band initialization: random",
+      "family": "DF1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "14"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "initialization": "random",
+        "input_channels": 16
+      },
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "DF1-rgb_expanded",
+      "title": "D-FINE-S 16-band initialization: rgb_expanded",
+      "family": "DF1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "14"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "initialization": "rgb_expanded",
+        "input_channels": 16
+      },
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "M1a",
+      "title": "YOLO multi-scale training 0",
+      "family": "M1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "15"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "multi_scale": 0
+      },
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "M1b",
+      "title": "YOLO multi-scale training 0.1",
+      "family": "M1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "15"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "multi_scale": 0.1
+      },
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "M1c",
+      "title": "YOLO multi-scale training 0.2",
+      "family": "M1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "15"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "multi_scale": 0.2
+      },
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "M1d",
+      "title": "Best transformer supported multi-scale training policy",
+      "family": "M1",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "15"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Measured best transformer",
+        "Supported multi-scale training policy"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "T1",
+      "title": "Same-checkpoint horizontal flip TTA",
+      "family": "T",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "16"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "Identical checkpoint; policies selected on validation/CV before holdout",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "T2",
+      "title": "Same-checkpoint multi-scale TTA",
+      "family": "T",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "16"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Small fixed scale set selected before holdout"
+      ],
+      "gate": "Identical checkpoint; policies selected on validation/CV before holdout",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "T3",
+      "title": "Same-checkpoint flip plus multi-scale TTA",
+      "family": "T",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "16"
+      ],
+      "prerequisites": [
+        "T1",
+        "T2"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "Identical checkpoint; policies selected on validation/CV before holdout",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "T4",
+      "title": "Same-checkpoint overlapping crop/sliced TTA",
+      "family": "T",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "16"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Crop dimensions, overlap and merge policy"
+      ],
+      "gate": "Identical checkpoint; policies selected on validation/CV before holdout",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SN1",
+      "title": "YOLO NMS comparison",
+      "family": "SN",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "17"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [
+        "SN1-normal",
+        "SN1-linear",
+        "SN1-gaussian"
+      ],
+      "evidence": null
+    },
+    {
+      "id": "SN1-normal",
+      "title": "YOLO normal NMS",
+      "family": "SN1",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "17"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "suppression": "normal"
+      },
+      "unresolved_settings": [
+        "Suppression parameters"
+      ],
+      "gate": "Same checkpoint and pre-suppression predictions; tune only on validation folds",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SN1-linear",
+      "title": "YOLO linear NMS",
+      "family": "SN1",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "17"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "suppression": "linear"
+      },
+      "unresolved_settings": [
+        "Suppression parameters"
+      ],
+      "gate": "Same checkpoint and pre-suppression predictions; tune only on validation folds",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SN1-gaussian",
+      "title": "YOLO gaussian NMS",
+      "family": "SN1",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "17"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "suppression": "gaussian"
+      },
+      "unresolved_settings": [
+        "Suppression parameters"
+      ],
+      "gate": "Same checkpoint and pre-suppression predictions; tune only on validation folds",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SN2",
+      "title": "Cascade R-CNN NMS comparison",
+      "family": "SN",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "17"
+      ],
+      "prerequisites": [
+        "CR1"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": null,
+      "variants": [
+        "SN2-normal",
+        "SN2-linear",
+        "SN2-gaussian"
+      ],
+      "evidence": null
+    },
+    {
+      "id": "SN2-normal",
+      "title": "Cascade R-CNN normal NMS",
+      "family": "SN2",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "17"
+      ],
+      "prerequisites": [
+        "CR1"
+      ],
+      "settings": {
+        "suppression": "normal"
+      },
+      "unresolved_settings": [
+        "Suppression parameters"
+      ],
+      "gate": "Same checkpoint and pre-suppression predictions; tune only on validation folds",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SN2-linear",
+      "title": "Cascade R-CNN linear NMS",
+      "family": "SN2",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "17"
+      ],
+      "prerequisites": [
+        "CR1"
+      ],
+      "settings": {
+        "suppression": "linear"
+      },
+      "unresolved_settings": [
+        "Suppression parameters"
+      ],
+      "gate": "Same checkpoint and pre-suppression predictions; tune only on validation folds",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SN2-gaussian",
+      "title": "Cascade R-CNN gaussian NMS",
+      "family": "SN2",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "17"
+      ],
+      "prerequisites": [
+        "CR1"
+      ],
+      "settings": {
+        "suppression": "gaussian"
+      },
+      "unresolved_settings": [
+        "Suppression parameters"
+      ],
+      "gate": "Same checkpoint and pre-suppression predictions; tune only on validation folds",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SAM1",
+      "title": "Training-fold material-pair spectral separability diagnostic",
+      "family": "SAM",
+      "kind": "diagnostic",
+      "status": "pending",
+      "source_sections": [
+        "18"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Fixed inward box shrink percentage",
+        "Median or trimmed-mean spectrum",
+        "Training-selected pair threshold"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SAM2",
+      "title": "Same-model SAM auxiliary feature",
+      "family": "SAM",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "18"
+      ],
+      "prerequisites": [
+        "SAM1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Single-model auxiliary feature integration"
+      ],
+      "gate": "SAM1 demonstrates useful measured separation; never fuse independent classifier predictions",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "SAM3",
+      "title": "SAM plus winning spectral preprocessing",
+      "family": "SAM",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "18"
+      ],
+      "prerequisites": [
+        "SAM1",
+        "SP0",
+        "SP1",
+        "SP2",
+        "SP3"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "SP-series and SAM1 results must exist",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "PL1",
+      "title": "Hidden known training-GT pseudo-label quality audit",
+      "family": "PL",
+      "kind": "diagnostic",
+      "status": "pending",
+      "source_sections": [
+        "19"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Controlled hidden training subset",
+        "Teacher checkpoint trained without hidden subset",
+        "Threshold curve"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "PL2",
+      "title": "Confirmed missing-label training augmentation",
+      "family": "PL",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "19"
+      ],
+      "prerequisites": [
+        "A1-audit",
+        "A1a"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "Only manually confirmed training candidates; unchanged official validation/holdout GT",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "PL3",
+      "title": "Teacher/student training-fold code path",
+      "family": "PL",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "19"
+      ],
+      "prerequisites": [
+        "V1",
+        "PL1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Teacher/student and knowledge-distillation configuration"
+      ],
+      "gate": "Training-fold data only; test/ranking pseudo-label expansion requires exact organizer permission",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "CR1",
+      "title": "16-band Cascade R-CNN",
+      "family": "CR1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "20"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {
+        "backbone_control": "ResNet-50-FPN or closest stable MMDetection baseline",
+        "input_channels": 16
+      },
+      "unresolved_settings": [
+        "Measured normalization and geometry winners",
+        "Pretrained provenance"
+      ],
+      "gate": null,
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "P1",
+      "title": "Higher input resolution",
+      "family": "P",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "21"
+      ],
+      "prerequisites": [
+        "D1-YOLO26m",
+        "D1-RT-DETR-L"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Higher resolution against fixed architecture/settings"
+      ],
+      "gate": "D1 size measurements exist; P5 must run on at least one compatible architecture",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "P2",
+      "title": "Overlapping patch training",
+      "family": "P",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "21"
+      ],
+      "prerequisites": [
+        "D1-YOLO26m",
+        "D1-RT-DETR-L"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Crop dimensions, overlap and minimum visible-box fraction"
+      ],
+      "gate": "D1 size measurements exist; P5 must run on at least one compatible architecture",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "P3",
+      "title": "Same-checkpoint sliced inference",
+      "family": "P",
+      "kind": "inference",
+      "status": "pending",
+      "source_sections": [
+        "21"
+      ],
+      "prerequisites": [
+        "D1-YOLO26m",
+        "D1-RT-DETR-L"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Crop dimensions, overlap and merge policy"
+      ],
+      "gate": "D1 size measurements exist; P5 must run on at least one compatible architecture",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "P4",
+      "title": "Patch training plus sliced inference",
+      "family": "P",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "21"
+      ],
+      "prerequisites": [
+        "D1-YOLO26m",
+        "D1-RT-DETR-L",
+        "P2",
+        "P3"
+      ],
+      "settings": {},
+      "unresolved_settings": [],
+      "gate": "D1 size measurements exist; P5 must run on at least one compatible architecture",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "P5",
+      "title": "High-resolution feature level",
+      "family": "P",
+      "kind": "individual",
+      "status": "pending",
+      "source_sections": [
+        "21"
+      ],
+      "prerequisites": [
+        "D1-YOLO26m",
+        "D1-RT-DETR-L"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "At least one architecture supporting denser feature pyramid"
+      ],
+      "gate": "D1 size measurements exist; P5 must run on at least one compatible architecture",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1a",
+      "title": "RT-DETRv2",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1b",
+      "title": "D-FINE-S",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1c",
+      "title": "D-FINE-M",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1d",
+      "title": "DINO detector + Swin backbone",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1e",
+      "title": "Co-DINO / Co-DETR",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1f",
+      "title": "InternImage-T/S backbone",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1g",
+      "title": "Swin-T/S backbone",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1h",
+      "title": "FocalNet detector/backbone",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1i",
+      "title": "ConvNeXt V2 pretrained backbone",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E1j",
+      "title": "DINOv2 ViT-S/14 or ViT-B/14 pretrained backbone",
+      "family": "E1",
+      "kind": "architecture",
+      "status": "pending",
+      "source_sections": [
+        "22"
+      ],
+      "prerequisites": [
+        "V1"
+      ],
+      "settings": {},
+      "unresolved_settings": [
+        "Official variant and compatible detection head",
+        "Exact pretrained weights and provenance",
+        "Common short budget",
+        "Normalization, geometry and seed"
+      ],
+      "gate": "Public weights, source, pretrained dataset and license recorded; S1 16-band adaptation; fair E1 stages",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "A-C1",
+      "title": "ARCH* + PRE*",
+      "family": "combination-A",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "27"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + PRE*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "A-C2",
+      "title": "ARCH* + PRE* + STEM*",
+      "family": "combination-A",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "27"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + PRE* + STEM*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "A-C3",
+      "title": "ARCH* + PRE* + AUG*",
+      "family": "combination-A",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "27"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + PRE* + AUG*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "A-C4",
+      "title": "ARCH* + PRE* + STEM* + AUG*",
+      "family": "combination-A",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "27"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + PRE* + STEM* + AUG*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "A-C5",
+      "title": "ARCH* + PRE* + CLASS*",
+      "family": "combination-A",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "27"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + PRE* + CLASS*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "B-C1",
+      "title": "ARCH* + GEO*",
+      "family": "combination-B",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "28"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + GEO*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "B-C2",
+      "title": "ARCH* + LOC*",
+      "family": "combination-B",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "28"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + LOC*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "B-C3",
+      "title": "ARCH* + SCALE*",
+      "family": "combination-B",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "28"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + SCALE*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "B-C4",
+      "title": "ARCH* + GEO* + LOC*",
+      "family": "combination-B",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "28"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + GEO* + LOC*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "B-C5",
+      "title": "ARCH* + GEO* + LOC* + SCALE*",
+      "family": "combination-B",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "28"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + GEO* + LOC* + SCALE*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "C-C1",
+      "title": "ARCH* + higher resolution winner",
+      "family": "combination-C",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "29"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + higher resolution winner"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "C-C2",
+      "title": "ARCH* + patch training winner",
+      "family": "combination-C",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "29"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + patch training winner"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "C-C3",
+      "title": "ARCH* + sliced/crop inference winner",
+      "family": "combination-C",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "29"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + sliced/crop inference winner"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "C-C4",
+      "title": "ARCH* + patch training + sliced inference",
+      "family": "combination-C",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "29"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + patch training + sliced inference"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "C-C5",
+      "title": "ARCH* + SMALL* + SCALE*",
+      "family": "combination-C",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "29"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + SMALL* + SCALE*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "D-C1",
+      "title": "ARCH* + flip TTA",
+      "family": "combination-D",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "30"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + flip TTA"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "D-C2",
+      "title": "ARCH* + multi-scale TTA",
+      "family": "combination-D",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "30"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + multi-scale TTA"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "D-C3",
+      "title": "ARCH* + TTA*",
+      "family": "combination-D",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "30"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + TTA*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "D-C4",
+      "title": "ARCH_NMS* + NMS*",
+      "family": "combination-D",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "30"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH_NMS* + NMS*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "D-C5",
+      "title": "ARCH_NMS* + TTA* + NMS*",
+      "family": "combination-D",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "30"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH_NMS* + TTA* + NMS*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E-C1",
+      "title": "ARCH* + CLASS*",
+      "family": "combination-E",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "31"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + CLASS*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E-C2",
+      "title": "ARCH* + LABEL*",
+      "family": "combination-E",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "31"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + LABEL*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E-C3",
+      "title": "ARCH* + CLASS* + AUG*",
+      "family": "combination-E",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "31"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + CLASS* + AUG*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E-C4",
+      "title": "ARCH* + CLASS* + LABEL*",
+      "family": "combination-E",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "31"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + CLASS* + LABEL*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "E-C5",
+      "title": "ARCH* + CLASS* + LABEL* + AUG*",
+      "family": "combination-E",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "31"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "ARCH* + CLASS* + LABEL* + AUG*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "F-C1",
+      "title": "E1 rank-1 architecture + PRE* + STEM*",
+      "family": "combination-F",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "32"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "E1 rank-1 architecture + PRE* + STEM*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "F-C2",
+      "title": "E1 rank-2 architecture + PRE* + STEM*",
+      "family": "combination-F",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "32"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "E1 rank-2 architecture + PRE* + STEM*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "F-C3",
+      "title": "E1 rank-1 + GEO* + LOC*",
+      "family": "combination-F",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "32"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "E1 rank-1 + GEO* + LOC*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "F-C4",
+      "title": "E1 rank-1 + SCALE* + SMALL*",
+      "family": "combination-F",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "32"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "E1 rank-1 + SCALE* + SMALL*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "F-C5",
+      "title": "E1 rank-1 + PRE* + CLASS* + TTA*",
+      "family": "combination-F",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "32"
+      ],
+      "prerequisites": [],
+      "settings": {
+        "expression": "E1 rank-1 + PRE* + CLASS* + TTA*"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "G-C1",
+      "title": "best A + best B",
+      "family": "combination-G",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "33"
+      ],
+      "prerequisites": [
+        "A-C1",
+        "A-C2",
+        "A-C3",
+        "A-C4",
+        "A-C5",
+        "B-C1",
+        "B-C2",
+        "B-C3",
+        "B-C4",
+        "B-C5"
+      ],
+      "settings": {
+        "expression": "best A + best B"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "G-C2",
+      "title": "best A + best C",
+      "family": "combination-G",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "33"
+      ],
+      "prerequisites": [
+        "A-C1",
+        "A-C2",
+        "A-C3",
+        "A-C4",
+        "A-C5",
+        "C-C1",
+        "C-C2",
+        "C-C3",
+        "C-C4",
+        "C-C5"
+      ],
+      "settings": {
+        "expression": "best A + best C"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "G-C3",
+      "title": "best B + best D",
+      "family": "combination-G",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "33"
+      ],
+      "prerequisites": [
+        "B-C1",
+        "B-C2",
+        "B-C3",
+        "B-C4",
+        "B-C5",
+        "D-C1",
+        "D-C2",
+        "D-C3",
+        "D-C4",
+        "D-C5"
+      ],
+      "settings": {
+        "expression": "best B + best D"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "G-C4",
+      "title": "best A + best B + best D",
+      "family": "combination-G",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "33"
+      ],
+      "prerequisites": [
+        "A-C1",
+        "A-C2",
+        "A-C3",
+        "A-C4",
+        "A-C5",
+        "B-C1",
+        "B-C2",
+        "B-C3",
+        "B-C4",
+        "B-C5",
+        "D-C1",
+        "D-C2",
+        "D-C3",
+        "D-C4",
+        "D-C5"
+      ],
+      "settings": {
+        "expression": "best A + best B + best D"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    },
+    {
+      "id": "G-C5",
+      "title": "best compatible components from A + B + C + D + E",
+      "family": "combination-G",
+      "kind": "combination",
+      "status": "pending",
+      "source_sections": [
+        "33"
+      ],
+      "prerequisites": [
+        "A-C1",
+        "A-C2",
+        "A-C3",
+        "A-C4",
+        "A-C5",
+        "B-C1",
+        "B-C2",
+        "B-C3",
+        "B-C4",
+        "B-C5",
+        "C-C1",
+        "C-C2",
+        "C-C3",
+        "C-C4",
+        "C-C5",
+        "D-C1",
+        "D-C2",
+        "D-C3",
+        "D-C4",
+        "D-C5",
+        "E-C1",
+        "E-C2",
+        "E-C3",
+        "E-C4",
+        "E-C5"
+      ],
+      "settings": {
+        "expression": "best compatible components from A + B + C + D + E"
+      },
+      "unresolved_settings": [
+        "All components resolved from measured eligible individual results",
+        "Common fixed design fold and shortened budget"
+      ],
+      "gate": "individual-results-complete-and-components-promoted",
+      "variants": [],
+      "evidence": null
+    }
+  ],
+  "stages": {
+    "E1-0": {
+      "source_sections": [
+        "23"
+      ],
+      "selection": "every E1a-j candidate",
+      "requirements": [
+        "Load pretrained weights",
+        "Accept 16 bands",
+        "Forward pass",
+        "One short smoke epoch",
+        "Valid predictions",
+        "GPU memory/runtime"
+      ],
+      "failure_meaning": "implementation failure, not performance rejection"
+    },
+    "E1-1": {
+      "source_sections": [
+        "23"
+      ],
+      "selection": "every E1a-j candidate and shortened-budget YOLO/RT-DETR controls",
+      "requirements": [
+        "Same fold",
+        "Same fixed short budget",
+        "Same normalization",
+        "Same geometry",
+        "Same seed"
+      ]
+    },
+    "E1-2": {
+      "source_sections": [
+        "23",
+        "5"
+      ],
+      "selection": "best three E1-1 candidates",
+      "candidate_count": 3,
+      "fold_count": 3,
+      "budget": "normal full budget",
+      "gate": "architecture-promotion"
+    },
+    "E1-3": {
+      "source_sections": [
+        "23"
+      ],
+      "selection": "final E1 winner only",
+      "candidate_count": 1,
+      "evaluation": "holdout"
+    },
+    "C0": {
+      "source_sections": [
+        "34"
+      ],
+      "selection": "all 35 combinations",
+      "candidate_count": 35,
+      "requirements": [
+        "Exact same fixed design fold",
+        "Exact same shortened budget",
+        "Corresponding shortened-budget baseline"
+      ]
+    },
+    "C1": {
+      "source_sections": [
+        "34"
+      ],
+      "selection": "top 15 C0 by design-fold mAP50-95 with diagnostic verification",
+      "candidate_count": 15,
+      "evaluation": "second fold",
+      "diagnostics": [
+        "mAP75",
+        "AP-small",
+        "worst-class AP",
+        "difficult-pair confusion"
+      ]
+    },
+    "C2": {
+      "source_sections": [
+        "34"
+      ],
+      "selection": "top 10 after second-fold verification",
+      "candidate_count": 10,
+      "fold_count": 3,
+      "budget": "normal full budget"
+    },
+    "C3": {
+      "source_sections": [
+        "34"
+      ],
+      "selection": "top three full-CV candidates",
+      "candidate_count": 3,
+      "evaluation": "once on untouched holdout",
+      "requirements": [
+        "Freeze settings before holdout"
+      ]
+    },
+    "C4": {
+      "source_sections": [
+        "34",
+        "35"
+      ],
+      "selection": "one final model/checkpoint/config",
+      "candidate_count": 1,
+      "requirements": [
+        "Public Kaggle score confirms and is not selector",
+        "Finalist ranking order preserved"
+      ]
+    }
+  },
+  "execution_requirements": [
+    {
+      "id": "E1a:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1a",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1a:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1a",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1a:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1b:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1b",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1b:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1b",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1b:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1c:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1c",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1c:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1c",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1c:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1d:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1d",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1d:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1d",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1d:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1e:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1e",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1e:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1e",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1e:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1f:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1f",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1f:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1f",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1f:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1g:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1g",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1g:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1g",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1g:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1h:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1h",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1h:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1h",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1h:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1i:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1i",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1i:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1i",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1i:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1j:E1-0",
+      "stage": "E1-0",
+      "experiment_id": "E1j",
+      "selection": null,
+      "fold": null,
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1j:E1-1",
+      "stage": "E1-1",
+      "experiment_id": "E1j",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "E1j:E1-0"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-1-control-YOLO",
+      "stage": "E1-1",
+      "experiment_id": null,
+      "selection": "Current YOLO retrained with identical shortened budget",
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-1-control-RT-DETR",
+      "stage": "E1-1",
+      "experiment_id": null,
+      "selection": "Current RT-DETR retrained with identical shortened budget",
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "V1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-2-rank1-fold0",
+      "stage": "E1-2",
+      "experiment_id": null,
+      "selection": "E1-1 rank 1",
+      "fold": 0,
+      "prerequisites": [
+        "E1a:E1-1",
+        "E1b:E1-1",
+        "E1c:E1-1",
+        "E1d:E1-1",
+        "E1e:E1-1",
+        "E1f:E1-1",
+        "E1g:E1-1",
+        "E1h:E1-1",
+        "E1i:E1-1",
+        "E1j:E1-1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-2-rank1-fold1",
+      "stage": "E1-2",
+      "experiment_id": null,
+      "selection": "E1-1 rank 1",
+      "fold": 1,
+      "prerequisites": [
+        "E1a:E1-1",
+        "E1b:E1-1",
+        "E1c:E1-1",
+        "E1d:E1-1",
+        "E1e:E1-1",
+        "E1f:E1-1",
+        "E1g:E1-1",
+        "E1h:E1-1",
+        "E1i:E1-1",
+        "E1j:E1-1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-2-rank1-fold2",
+      "stage": "E1-2",
+      "experiment_id": null,
+      "selection": "E1-1 rank 1",
+      "fold": 2,
+      "prerequisites": [
+        "E1a:E1-1",
+        "E1b:E1-1",
+        "E1c:E1-1",
+        "E1d:E1-1",
+        "E1e:E1-1",
+        "E1f:E1-1",
+        "E1g:E1-1",
+        "E1h:E1-1",
+        "E1i:E1-1",
+        "E1j:E1-1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-2-rank2-fold0",
+      "stage": "E1-2",
+      "experiment_id": null,
+      "selection": "E1-1 rank 2",
+      "fold": 0,
+      "prerequisites": [
+        "E1a:E1-1",
+        "E1b:E1-1",
+        "E1c:E1-1",
+        "E1d:E1-1",
+        "E1e:E1-1",
+        "E1f:E1-1",
+        "E1g:E1-1",
+        "E1h:E1-1",
+        "E1i:E1-1",
+        "E1j:E1-1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-2-rank2-fold1",
+      "stage": "E1-2",
+      "experiment_id": null,
+      "selection": "E1-1 rank 2",
+      "fold": 1,
+      "prerequisites": [
+        "E1a:E1-1",
+        "E1b:E1-1",
+        "E1c:E1-1",
+        "E1d:E1-1",
+        "E1e:E1-1",
+        "E1f:E1-1",
+        "E1g:E1-1",
+        "E1h:E1-1",
+        "E1i:E1-1",
+        "E1j:E1-1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-2-rank2-fold2",
+      "stage": "E1-2",
+      "experiment_id": null,
+      "selection": "E1-1 rank 2",
+      "fold": 2,
+      "prerequisites": [
+        "E1a:E1-1",
+        "E1b:E1-1",
+        "E1c:E1-1",
+        "E1d:E1-1",
+        "E1e:E1-1",
+        "E1f:E1-1",
+        "E1g:E1-1",
+        "E1h:E1-1",
+        "E1i:E1-1",
+        "E1j:E1-1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-2-rank3-fold0",
+      "stage": "E1-2",
+      "experiment_id": null,
+      "selection": "E1-1 rank 3",
+      "fold": 0,
+      "prerequisites": [
+        "E1a:E1-1",
+        "E1b:E1-1",
+        "E1c:E1-1",
+        "E1d:E1-1",
+        "E1e:E1-1",
+        "E1f:E1-1",
+        "E1g:E1-1",
+        "E1h:E1-1",
+        "E1i:E1-1",
+        "E1j:E1-1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-2-rank3-fold1",
+      "stage": "E1-2",
+      "experiment_id": null,
+      "selection": "E1-1 rank 3",
+      "fold": 1,
+      "prerequisites": [
+        "E1a:E1-1",
+        "E1b:E1-1",
+        "E1c:E1-1",
+        "E1d:E1-1",
+        "E1e:E1-1",
+        "E1f:E1-1",
+        "E1g:E1-1",
+        "E1h:E1-1",
+        "E1i:E1-1",
+        "E1j:E1-1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-2-rank3-fold2",
+      "stage": "E1-2",
+      "experiment_id": null,
+      "selection": "E1-1 rank 3",
+      "fold": 2,
+      "prerequisites": [
+        "E1a:E1-1",
+        "E1b:E1-1",
+        "E1c:E1-1",
+        "E1d:E1-1",
+        "E1e:E1-1",
+        "E1f:E1-1",
+        "E1g:E1-1",
+        "E1h:E1-1",
+        "E1i:E1-1",
+        "E1j:E1-1"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E1-3-winner",
+      "stage": "E1-3",
+      "experiment_id": null,
+      "selection": "Verified final E1 winner",
+      "fold": null,
+      "prerequisites": [
+        "E1-2-rank1-fold0",
+        "E1-2-rank1-fold1",
+        "E1-2-rank1-fold2",
+        "E1-2-rank2-fold0",
+        "E1-2-rank2-fold1",
+        "E1-2-rank2-fold2",
+        "E1-2-rank3-fold0",
+        "E1-2-rank3-fold1",
+        "E1-2-rank3-fold2"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "A-C1:C0",
+      "stage": "C0",
+      "experiment_id": "A-C1",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "A-C2:C0",
+      "stage": "C0",
+      "experiment_id": "A-C2",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "A-C3:C0",
+      "stage": "C0",
+      "experiment_id": "A-C3",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "A-C4:C0",
+      "stage": "C0",
+      "experiment_id": "A-C4",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "A-C5:C0",
+      "stage": "C0",
+      "experiment_id": "A-C5",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "B-C1:C0",
+      "stage": "C0",
+      "experiment_id": "B-C1",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "B-C2:C0",
+      "stage": "C0",
+      "experiment_id": "B-C2",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "B-C3:C0",
+      "stage": "C0",
+      "experiment_id": "B-C3",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "B-C4:C0",
+      "stage": "C0",
+      "experiment_id": "B-C4",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "B-C5:C0",
+      "stage": "C0",
+      "experiment_id": "B-C5",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C-C1:C0",
+      "stage": "C0",
+      "experiment_id": "C-C1",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C-C2:C0",
+      "stage": "C0",
+      "experiment_id": "C-C2",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C-C3:C0",
+      "stage": "C0",
+      "experiment_id": "C-C3",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C-C4:C0",
+      "stage": "C0",
+      "experiment_id": "C-C4",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C-C5:C0",
+      "stage": "C0",
+      "experiment_id": "C-C5",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "D-C1:C0",
+      "stage": "C0",
+      "experiment_id": "D-C1",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "D-C2:C0",
+      "stage": "C0",
+      "experiment_id": "D-C2",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "D-C3:C0",
+      "stage": "C0",
+      "experiment_id": "D-C3",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "D-C4:C0",
+      "stage": "C0",
+      "experiment_id": "D-C4",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "D-C5:C0",
+      "stage": "C0",
+      "experiment_id": "D-C5",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E-C1:C0",
+      "stage": "C0",
+      "experiment_id": "E-C1",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E-C2:C0",
+      "stage": "C0",
+      "experiment_id": "E-C2",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E-C3:C0",
+      "stage": "C0",
+      "experiment_id": "E-C3",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E-C4:C0",
+      "stage": "C0",
+      "experiment_id": "E-C4",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "E-C5:C0",
+      "stage": "C0",
+      "experiment_id": "E-C5",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "F-C1:C0",
+      "stage": "C0",
+      "experiment_id": "F-C1",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "F-C2:C0",
+      "stage": "C0",
+      "experiment_id": "F-C2",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "F-C3:C0",
+      "stage": "C0",
+      "experiment_id": "F-C3",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "F-C4:C0",
+      "stage": "C0",
+      "experiment_id": "F-C4",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "F-C5:C0",
+      "stage": "C0",
+      "experiment_id": "F-C5",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "G-C1:C0",
+      "stage": "C0",
+      "experiment_id": "G-C1",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "G-C2:C0",
+      "stage": "C0",
+      "experiment_id": "G-C2",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "G-C3:C0",
+      "stage": "C0",
+      "experiment_id": "G-C3",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "G-C4:C0",
+      "stage": "C0",
+      "experiment_id": "G-C4",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "G-C5:C0",
+      "stage": "C0",
+      "experiment_id": "G-C5",
+      "selection": null,
+      "fold": "fixed_design_fold",
+      "prerequisites": [
+        "individual-results-complete-and-components-promoted"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C0-corresponding-controls",
+      "stage": "C0",
+      "experiment_id": null,
+      "selection": "Each distinct corresponding baseline at the identical short budget",
+      "fold": "fixed_design_fold",
+      "prerequisites": [],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank1-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 1",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank2-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 2",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank3-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 3",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank4-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 4",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank5-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 5",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank6-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 6",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank7-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 7",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank8-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 8",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank9-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 9",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank10-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 10",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank11-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 11",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank12-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 12",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank13-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 13",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank14-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 14",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C1-rank15-second_fold",
+      "stage": "C1",
+      "experiment_id": null,
+      "selection": "C0 selected rank 15",
+      "fold": "second_fold",
+      "prerequisites": [
+        "A-C1:C0",
+        "A-C2:C0",
+        "A-C3:C0",
+        "A-C4:C0",
+        "A-C5:C0",
+        "B-C1:C0",
+        "B-C2:C0",
+        "B-C3:C0",
+        "B-C4:C0",
+        "B-C5:C0",
+        "C-C1:C0",
+        "C-C2:C0",
+        "C-C3:C0",
+        "C-C4:C0",
+        "C-C5:C0",
+        "D-C1:C0",
+        "D-C2:C0",
+        "D-C3:C0",
+        "D-C4:C0",
+        "D-C5:C0",
+        "E-C1:C0",
+        "E-C2:C0",
+        "E-C3:C0",
+        "E-C4:C0",
+        "E-C5:C0",
+        "F-C1:C0",
+        "F-C2:C0",
+        "F-C3:C0",
+        "F-C4:C0",
+        "F-C5:C0",
+        "G-C1:C0",
+        "G-C2:C0",
+        "G-C3:C0",
+        "G-C4:C0",
+        "G-C5:C0",
+        "C0-corresponding-controls"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank1-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 1",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank1-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 1",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank1-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 1",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank2-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 2",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank2-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 2",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank2-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 2",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank3-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 3",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank3-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 3",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank3-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 3",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank4-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 4",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank4-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 4",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank4-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 4",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank5-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 5",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank5-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 5",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank5-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 5",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank6-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 6",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank6-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 6",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank6-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 6",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank7-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 7",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank7-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 7",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank7-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 7",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank8-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 8",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank8-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 8",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank8-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 8",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank9-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 9",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank9-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 9",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank9-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 9",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank10-0",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 10",
+      "fold": 0,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank10-1",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 10",
+      "fold": 1,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C2-rank10-2",
+      "stage": "C2",
+      "experiment_id": null,
+      "selection": "C1 selected rank 10",
+      "fold": 2,
+      "prerequisites": [
+        "C1-rank1-second_fold",
+        "C1-rank2-second_fold",
+        "C1-rank3-second_fold",
+        "C1-rank4-second_fold",
+        "C1-rank5-second_fold",
+        "C1-rank6-second_fold",
+        "C1-rank7-second_fold",
+        "C1-rank8-second_fold",
+        "C1-rank9-second_fold",
+        "C1-rank10-second_fold",
+        "C1-rank11-second_fold",
+        "C1-rank12-second_fold",
+        "C1-rank13-second_fold",
+        "C1-rank14-second_fold",
+        "C1-rank15-second_fold"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C3-rank1-untouched_holdout",
+      "stage": "C3",
+      "experiment_id": null,
+      "selection": "C2 selected rank 1",
+      "fold": "untouched_holdout",
+      "prerequisites": [
+        "C2-rank1-0",
+        "C2-rank1-1",
+        "C2-rank1-2",
+        "C2-rank2-0",
+        "C2-rank2-1",
+        "C2-rank2-2",
+        "C2-rank3-0",
+        "C2-rank3-1",
+        "C2-rank3-2",
+        "C2-rank4-0",
+        "C2-rank4-1",
+        "C2-rank4-2",
+        "C2-rank5-0",
+        "C2-rank5-1",
+        "C2-rank5-2",
+        "C2-rank6-0",
+        "C2-rank6-1",
+        "C2-rank6-2",
+        "C2-rank7-0",
+        "C2-rank7-1",
+        "C2-rank7-2",
+        "C2-rank8-0",
+        "C2-rank8-1",
+        "C2-rank8-2",
+        "C2-rank9-0",
+        "C2-rank9-1",
+        "C2-rank9-2",
+        "C2-rank10-0",
+        "C2-rank10-1",
+        "C2-rank10-2"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C3-rank2-untouched_holdout",
+      "stage": "C3",
+      "experiment_id": null,
+      "selection": "C2 selected rank 2",
+      "fold": "untouched_holdout",
+      "prerequisites": [
+        "C2-rank1-0",
+        "C2-rank1-1",
+        "C2-rank1-2",
+        "C2-rank2-0",
+        "C2-rank2-1",
+        "C2-rank2-2",
+        "C2-rank3-0",
+        "C2-rank3-1",
+        "C2-rank3-2",
+        "C2-rank4-0",
+        "C2-rank4-1",
+        "C2-rank4-2",
+        "C2-rank5-0",
+        "C2-rank5-1",
+        "C2-rank5-2",
+        "C2-rank6-0",
+        "C2-rank6-1",
+        "C2-rank6-2",
+        "C2-rank7-0",
+        "C2-rank7-1",
+        "C2-rank7-2",
+        "C2-rank8-0",
+        "C2-rank8-1",
+        "C2-rank8-2",
+        "C2-rank9-0",
+        "C2-rank9-1",
+        "C2-rank9-2",
+        "C2-rank10-0",
+        "C2-rank10-1",
+        "C2-rank10-2"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C3-rank3-untouched_holdout",
+      "stage": "C3",
+      "experiment_id": null,
+      "selection": "C2 selected rank 3",
+      "fold": "untouched_holdout",
+      "prerequisites": [
+        "C2-rank1-0",
+        "C2-rank1-1",
+        "C2-rank1-2",
+        "C2-rank2-0",
+        "C2-rank2-1",
+        "C2-rank2-2",
+        "C2-rank3-0",
+        "C2-rank3-1",
+        "C2-rank3-2",
+        "C2-rank4-0",
+        "C2-rank4-1",
+        "C2-rank4-2",
+        "C2-rank5-0",
+        "C2-rank5-1",
+        "C2-rank5-2",
+        "C2-rank6-0",
+        "C2-rank6-1",
+        "C2-rank6-2",
+        "C2-rank7-0",
+        "C2-rank7-1",
+        "C2-rank7-2",
+        "C2-rank8-0",
+        "C2-rank8-1",
+        "C2-rank8-2",
+        "C2-rank9-0",
+        "C2-rank9-1",
+        "C2-rank9-2",
+        "C2-rank10-0",
+        "C2-rank10-1",
+        "C2-rank10-2"
+      ],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "C4-final-selection",
+      "stage": "C4",
+      "experiment_id": null,
+      "selection": "One verified final trained model",
+      "fold": null,
+      "prerequisites": [
+        "C3-rank1-untouched_holdout",
+        "C3-rank2-untouched_holdout",
+        "C3-rank3-untouched_holdout"
+      ],
+      "status": "pending",
+      "evidence": null
+    }
+  ],
+  "definition_of_done": [
+    {
+      "id": "DONE-01",
+      "requirement": "Real group-aware 3-fold CV or explicit evidence that only `image_id_only` grouping is possible.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-02",
+      "requirement": "AP-small/AP-medium/AP-large for current YOLO and RT-DETR.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-03",
+      "requirement": "Missing-annotation audit and controlled label experiment.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-04",
+      "requirement": "Normalization ablation results.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-05",
+      "requirement": "MNF result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-06",
+      "requirement": "Spectral smoothing/scatter-correction results.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-07",
+      "requirement": "Spectral augmentation result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-08",
+      "requirement": "16-band stem initialization result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-09",
+      "requirement": "Geometry result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-10",
+      "requirement": "Localization-tail result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-11",
+      "requirement": "D-FINE result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-12",
+      "requirement": "Multi-scale training result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-13",
+      "requirement": "TTA results.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-14",
+      "requirement": "Soft-NMS results.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-15",
+      "requirement": "SAM difficult-pair analysis and, if separable, SAM auxiliary result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-16",
+      "requirement": "Pseudo-label quality audit.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-17",
+      "requirement": "Pseudo-label / missing-label training result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-18",
+      "requirement": "Teacher/student implementation result on training-fold data.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-19",
+      "requirement": "Cascade R-CNN result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-20",
+      "requirement": "Patch-training result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-21",
+      "requirement": "Sliced inference result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-22",
+      "requirement": "Higher-resolution/small-object result.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-23",
+      "requirement": "E1 external-model screen for every listed candidate.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-24",
+      "requirement": "35 combination design-fold results.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-25",
+      "requirement": "Top-15 second-fold results.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-26",
+      "requirement": "Top-10 full 3-fold results.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-27",
+      "requirement": "Top-3 untouched holdout results.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-28",
+      "requirement": "Final sorted individual table.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-29",
+      "requirement": "Final sorted combination table.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-30",
+      "requirement": "Final sorted finalist table.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-31",
+      "requirement": "One final legal trained model selected from evidence.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-32",
+      "requirement": "Final pretrained model/source/license declaration.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    },
+    {
+      "id": "DONE-33",
+      "requirement": "Final test/ranking submission audit.",
+      "status": "pending",
+      "evidence": null,
+      "source_sections": [
+        "42"
+      ]
+    }
+  ],
+  "coverage": {
+    "experiment_records": 110,
+    "combination_experiments": 35,
+    "e1_candidates": 10,
+    "execution_requirements": 117,
+    "definition_of_done_requirements": 33
+  },
+  "limitations": [
+    "No execution or measured metric is claimed by registry generation.",
+    "Unspecified settings remain unresolved; no epoch budgets, seeds, thresholds, crop sizes or architecture variants are invented.",
+    "Alternatives named with slash or 'or' remain explicit candidate choices, not invented mandates to train every size.",
+    "SN2 normal/linear/Gaussian variants apply section 17's suppression comparison to Cascade; exact parameters require validation selection.",
+    "Aggregate family records and their child variants do not represent additional duplicate training mandates.",
+    "SP4/H1d, T4/P3 and A1b/PL2 retain separate obligations; any shared execution must prove identical configuration and satisfy both evidence contracts.",
+    "Conditional verification slots are obligations to select eligible measured candidates, not claims that any candidate has qualified.",
+    "All individual detector comparisons require shared 3-fold evidence under sections 3 and 5, with E1 and combination stages following their explicit staged budgets."
+  ]
+}

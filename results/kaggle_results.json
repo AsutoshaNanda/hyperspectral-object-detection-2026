@@ -1,0 +1,18 @@
+{
+  "_note": "Kaggle experiments (>=10 epoch). Public scores checked with Kaggle submissions API on 2026-09-23. Remote evaluation files are not stored locally.",
+  "runs": [
+    {"exp": "YOLO26m 16b 80ep 1024 (plan-A)", "epochs": 80, "val": 0.69894, "holdout": 0.65471, "public": 0.58967},
+    {"exp": "RT-DETR-L 16b 50ep 640 (plan-B v2)", "epochs": 50, "val": 0.66587, "holdout": 0.63706, "public": 0.60836},
+    {"exp": "Plan-C RT-DETR-L square-pad 50ep", "epochs": 50, "val": 0.70146, "holdout": 0.66981, "public": 0.60691},
+    {"exp": "Plan-C conf0.001/max300 (submission)", "epochs": 50, "val": null, "holdout": null, "public": 0.61001},
+    {"exp": "Plan-D low-conf inference", "epochs": 50, "val": null, "holdout": null, "public": 0.61008},
+    {"exp": "Tier A RT-DETR-L 50ep (submission)", "epochs": 50, "val": 0.701447, "holdout": 0.672156, "public": 0.59852},
+    {"exp": "base rtdetr-c-f0 (tails' teacher)", "epochs": 50, "val": 0.68923, "holdout": null, "public": null},
+    {"exp": "screen control-f0 (10ep fold0)", "epochs": 10, "val": 0.6201, "holdout": null, "public": null},
+    {"exp": "screen H1b spectral-aug (10ep)", "epochs": 10, "val": 0.6539, "holdout": null, "public": null},
+    {"exp": "screen S1b rgb_mean stem (10ep)", "epochs": 10, "val": 0.6420, "holdout": null, "public": null},
+    {"exp": "screen P1 imgsz1024 (10ep)", "epochs": 10, "val": 0.6343, "holdout": null, "public": null},
+    {"exp": "screen M1d multi-scale0.10 (10ep)", "epochs": 10, "val": 0.6273, "holdout": null, "public": null},
+    {"exp": "screen N1 z-score (10ep)", "epochs": 10, "val": 0.6223, "holdout": null, "public": null}
+  ]
+}

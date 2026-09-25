@@ -1,0 +1,13 @@
+[18:30] waiting for SELFTRAIN_ALL_DONE
+[23:55] self-training done; ruler check on GPU1
+{
+  "run": "selftrain_all",
+  "ultralytics_val_map50_95": 0.7507113718188697,
+  "eval_ultra_map50_95": 0.750740084392038,
+  "difference": 2.871257316827691e-05
+}
+[23:56] START cascade training (GPU1)
+[01:17] cascade exit rc=0
+[01:17] CASCADE HOLDOUT (ultralytics ruler): {"map50_95":0.652172512436299,"map50":0.9487962314769557,"map75":0.7673319910722338,"images":300,"classes_with_gt":18}
+[01:17] CASCADE HOLDOUT (pycocotools): coco/bbox_mAP: 0.6530
+[01:17] CASCADE_QUEUE_DONE

@@ -1,0 +1,6 @@
+{
+  "run": "selftrain_all",
+  "ultralytics_val_map50_95": 0.7507113718188697,
+  "eval_ultra_map50_95": 0.750740084392038,
+  "difference": 2.871257316827691e-05
+}
