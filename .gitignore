@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# never commit data, weights or predictions
+*.pt
+*.pth
+*.zip
+*.npy
+*.tif
+*.tiff
+submission*.csv
+data/
