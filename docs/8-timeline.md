@@ -12,7 +12,7 @@ Times are UTC where known.
 | Before 19 Sep | Plan C (square padding): holdout 0.66981, public 0.60691; with low confidence floor 0.61001 |
 | 18 Sep | Handwritten study notes ([notes/](../notes/)) |
 | 19 Sep | 5-day roadmap: 110 experiment records, 227 run slots. Folds built (V1). Size diagnostics (D1) measured. Execution tracker and code modules written |
-| 19 to 20 Sep | Fold-0 control (50 epochs): 0.68923. TTA and sliced-inference screen: nothing passed. SAM1: AUC about 0.71. Colab smoke tests: D-FINE-S passed at 640 px (random input layer), RT-DETRv2 (Hugging Face) failed. Fold-1 control finished (score not saved). Plan cut to a top 30, then a rolling top 10 |
+| 19 to 20 Sep | Fold-0 control (50 epochs): 0.68923. TTA and sliced-inference screen: nothing passed. SAM1: AUC about 0.71. Colab smoke tests: D-FINE-S passed at 640 px (random input layer), RT-DETRv2 (Hugging Face) failed. Folds 1 and 2 launched; fold 1 finished (score not saved), fold 2's outcome not recorded. Plan cut to a top 30, then a rolling top 10 |
 | 21 to 22 Sep (Kaggle) | 10-epoch screens: H1b 0.6539, S1b 0.6420, P1 0.6343, M1d 0.6273, N1 0.6223 vs control 0.6201. D-FINE-S crashed at start (3-channel stats step), patched. 10-epoch localization tail collapsed to 0.031, 12-epoch tail had the same bug. Cascade R-CNN notebook built. Kaggle weekly GPU quota used up |
 | 22 Sep early morning | Cascade R-CNN on Colab: 7 tries, never reached training. Kaggle blocks Colab (403/401). Decided to rent a GPU on vast.ai |
 | 22 Sep morning | Organizer answers (737136, 741902, 739853): pseudo-labels and self-training on test images allowed, no hand-fixed labels. Phase 2 notice (742487): new scoring and dates, ranking images inference-only |

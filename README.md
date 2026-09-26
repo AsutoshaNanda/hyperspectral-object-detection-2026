@@ -18,7 +18,7 @@ Every number here comes from a saved result file, a run log, or a Kaggle submiss
 | My best model on my own 300-image holdout | Combo, 0.672 |
 | Same Combo on the public board | 0.59852 (0.60242 after retraining on all labelled images) |
 | Experiments planned | 110 experiment records, 227 run slots |
-| Experiments actually tried | **90**, listed one by one in [docs/4-every-experiment-tried.md](docs/4-every-experiment-tried.md): 60 done, 16 failed, 3 partly, 11 prepared but never run |
+| Experiments actually tried | **90**, listed one by one in [docs/4-every-experiment-tried.md](docs/4-every-experiment-tried.md): 60 done, 16 failed, 4 partly, 10 prepared but never run |
 | Money spent on vast.ai | about $29 (estimate, see [compute](docs/6-compute-kaggle-vastai.md)) |
 | Best score on all 1,000 test images | combo_all, 0.596 (0.595 with flip TTA) |
 | Phase 2 (ranking set) | 3 files submitted on 26 Sep (best: combo_all 0.595 on the test half); 2 more planned for 27 Sep. The ranking-set score is revealed after the close |
@@ -58,7 +58,8 @@ All are single models. Holdout = the same 300 labelled images for every row. Pub
 | Plan C | RT-DETR-L, image padded to square instead of stretched | 0.670 | 0.607 / 0.610 |
 | Combo | Plan C + RGB-mean 16-band stem + 1 spectral-augmentation copy + 1024 px | 0.672 | 0.599 |
 | Self-training | RT-DETR-L trained on real labels + Combo's confident predictions on the test images | 0.668 | 0.584 |
-| D-FINE-S / D-FINE-M / RT-DETRv2 | Other detector designs, ported to 16 bands | 0.670 / 0.672 / about 0.67 | not submitted |
+| D-FINE-S / D-FINE-M | Other detector designs, ported to 16 bands | 0.670 / 0.672 | not submitted |
+| RT-DETRv2 | Another detector design, ported to 16 bands | never scored on the holdout (only on its own scorer, 0.776, not comparable) | not submitted |
 | Cascade R-CNN | MMDetection, ResNet-50 FPN, 16-band stem | 0.652 | not submitted |
 | combo_all | Combo recipe retrained on all 2,997 labelled images | none (no holdout left) | 0.602 (0.596) |
 | selftrain_all | Self-training recipe on all 2,997 labelled + 971 pseudo-labelled test images | none | 0.583 (0.575) |

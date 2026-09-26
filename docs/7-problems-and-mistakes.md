@@ -20,7 +20,7 @@ The two tests also ranked models differently:
 - The public board uses about 51% of 1,000 test images, about 510 images. That is a larger sample than my 300. I set a rule to ignore the public board because it was "only 51%", but my holdout was even smaller.
 - The holdout came from the training images. The test images may be different from them in some way (not proven), so a training-image holdout can over-state the real score.
 - After being used for dozens of decisions, the holdout was no longer an untouched test. This was noted on 19 Sep but not acted on.
-- When all methods landed at about 0.67, I read it as "the ceiling of this dataset". The frozen Phase 1 results show top teams at about 0.67 **on the real test**, while I was at 0.605. The ceiling was mine, not the dataset's.
+- When the measured models all landed at about 0.65 to 0.67, I read it as "the ceiling of this dataset". The frozen Phase 1 results show top teams at about 0.67 **on the real test**, while I was at 0.605. The ceiling was mine, not the dataset's.
 
 **Cost.** Models were picked and tuned on a test that did not reflect the real images. Most of the roughly $29 spent on vast.ai went into experiments judged by this holdout.
 
@@ -64,7 +64,7 @@ This is a guess from the file names on the Phase 1 results table ([743224](https
 
 - Much bigger models (names mention YOLO26x, Co-DINO with Swin, DINOv3, RF-DETR, DEIM). I used RT-DETR-L.
 - Bigger images (1536, 1720 px). I used 640 and 1024.
-- More test-time views (6 to 8 flips and sizes). I used 2.
+- More test-time views (4 to 8 flips and sizes). I used 2.
 - Work aimed at box precision (box loss, box refinement). I knew this was my weak spot but did not fix it.
 - Some names also suggest several models combined, which is against the rules; the organizers replace those scores with the team's best single-model score.
 
@@ -76,7 +76,7 @@ My gap of about 0.06 looks mostly like model size and compute, not one missing s
 |---|---|---|
 | Localization tail destroyed the model: score fell from 0.689 to 0.031 | L1 results invalid on Kaggle | Cause: the fine-tune kept Ultralytics' default warm-up bias learning rate of 0.1, about 1,000 times the target 1e-4, which blew up an already-trained model. Set `warmup_epochs=0`, `warmup_bias_lr=0`, `warmup_momentum=0`. After the fix: 0.689 to 0.698 |
 | Ultralytics `augment=True` (TTA) silently does nothing for RT-DETR | "Combo + TTA" was byte-identical to Combo, so the reported "no gain" was not a real test | Wrote manual flip TTA on 25 Sep ([code/vastai_phase2/mac_predict_tta.py](../code/vastai_phase2/mac_predict_tta.py)) |
-| D-FINE and RT-DETRv2 scored by their own tools (0.78) vs Ultralytics (0.70) | Looked like a big win | Re-scored on the same holdout: 0.670 / 0.672 / about 0.67, a tie |
+| D-FINE and RT-DETRv2 scored by their own tools (0.78) vs Ultralytics (0.70) | Looked like a big win | D-FINE-S and D-FINE-M re-scored on the same holdout: 0.670 / 0.672, a tie. RT-DETRv2 was never re-scored, but was still called a tie at the time |
 | A metrics script printed D-FINE's Average Recall (0.751) as its AP | False "breakthrough" | Parser fixed; real AP was 0.670 and 0.672 |
 | Kaggle weekly GPU quota ran out (21 Sep) | Could not run more on Kaggle | Moved to vast.ai |
 | Kaggle API blocks Colab and vast.ai addresses (401/403) | No direct data download | Download on the Mac, then upload or use a signed link |

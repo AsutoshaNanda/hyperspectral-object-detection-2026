@@ -37,7 +37,7 @@ Detailed numbers (mAP50, mAP75, per-class) are in [5-results-by-location.md](5-r
 | 12 | Day-1 diagnostics, repaired (D1 accuracy by object size) | Check | YOLO small/medium/large 0.664 / 0.751 / 0.536; RT-DETR-L (square pad) 0.669 / 0.739 / 0.728. Square padding beat stretching at every size | Done |
 | 13 | Fold-0 control: Plan C recipe on fold 0 | 50 | val 0.689, mAP75 0.832, 5.6 GPU-hours | Done |
 | 14 | Fold-1 control | 50 | Finished (about 5.7 GPU-hours); score not saved | Partly |
-| 15 | Fold-2 control | 50 | Never started | Not run |
+| 15 | Fold-2 control | 50 | Launched on Kaggle together with fold 1; its outcome and score were never recorded | Partly |
 | 16 | Plan B and YOLO runs on folds 0, 1, 2 (6 notebooks) | 50 / 80 | Notebooks prepared, never started | Not run |
 | 17 | T1: flip TTA (predict normal + mirrored image) on the fold-0 model | Inference | +0.0025 | Done |
 | 18 | T2: multi-scale TTA | Inference | +0.0008 | Done |
@@ -93,7 +93,7 @@ All screens: RT-DETR-L, square pad, 640 px, fold 0. Pass = at least +0.005 over 
 | 56 | E1a: RT-DETRv2, 16 bands (official repo) | 10 | 0.673 on its own scorer | Done |
 | 57 | DF2: D-FINE-M, 16 bands | 10 | 0.694 on its own scorer | Done |
 | 58 | DF1: D-FINE-S | 50 | Own scorer 0.779; fair holdout check **0.670** (tie) | Done |
-| 59 | E1a: RT-DETRv2 | 50 | Own scorer 0.776; fair check reported as a tie (about 0.67), exact value not saved | Done |
+| 59 | E1a: RT-DETRv2 | 50 | Own scorer 0.776 (not comparable). It was never re-scored on the holdout; at the time it was called a tie without that check | Done |
 | 60 | DF2: D-FINE-M | 50 | Own scorer 0.786; fair holdout check **0.672** (tie) | Done |
 | 61 | SP2: Savitzky-Golay, full length | 50 | holdout 0.660 (lost to Combo) | Done |
 | 62 | Combo + 12-epoch tail | 12 | holdout 0.672, no gain (original kept) | Done |
@@ -149,7 +149,7 @@ The Combo and Self-training models had been lost with box 1, so they were retrai
 |---|---:|
 | Done | 60 |
 | Failed | 16 |
-| Partly | 3 |
-| Not run | 11 |
+| Partly | 4 |
+| Not run | 10 |
 
 The best single result on the full 1,000 test images is **combo_all at 0.596** (0.595 with flip TTA). The organizers' frozen Phase 1 score is 0.60486 (rank 104 of 300); first place is 0.67179.

@@ -38,7 +38,7 @@ Six pages, in [notes/](../notes/).
 | RT-DETR-L (Ultralytics) | Its trainer accepts the channel count | [trainer source](https://github.com/ultralytics/ultralytics/blob/v8.4.147/ultralytics/models/rtdetr/train.py) | Main model family |
 | RF-DETR | Same-competition report above | [loader source](https://github.com/roboflow/rf-detr/blob/develop/src/rfdetr/datasets/coco.py) | Not used: its standard loader converts images to RGB |
 | D-FINE S / M | Designed for tighter boxes (FDR, GO-LSD) | [D-FINE](https://github.com/Peterande/D-FINE) | Ported to 16 bands, tied Combo |
-| RT-DETRv2 | Successor of RT-DETR | [RT-DETR repo](https://github.com/lyuwenyu/RT-DETR), [paper](https://arxiv.org/abs/2407.17140) | Ported, tied Combo |
+| RT-DETRv2 | Successor of RT-DETR | [RT-DETR repo](https://github.com/lyuwenyu/RT-DETR), [paper](https://arxiv.org/abs/2407.17140) | Ported and trained; never scored on the holdout |
 | Cascade R-CNN | PBVS 2022 winner's detector | [paper](https://openaccess.thecvf.com/content_cvpr_2018/html/Cai_Cascade_R-CNN_Delving_CVPR_2018_paper.html), [MMDetection config](https://github.com/open-mmlab/mmdetection/tree/main/configs/cascade_rcnn) | Ran on 24 Sep, lost (0.652) |
 | DINO, Co-DETR, InternImage, Swin, FocalNet, ConvNeXt V2, DINOv2 | Outside-model screen (E1d to E1j) | [DINO](https://github.com/IDEA-Research/DINO), [Co-DETR](https://github.com/Sense-X/Co-DETR), [InternImage](https://github.com/OpenGVLab/InternImage), [Swin detection](https://github.com/SwinTransformer/Swin-Transformer-Object-Detection), [FocalNet-DINO](https://github.com/FocalNet/FocalNet-DINO), [ConvNeXt V2](https://github.com/facebookresearch/ConvNeXt-V2), [DINOv2](https://github.com/facebookresearch/dinov2) | Not run (see plan doc) |
 

@@ -81,7 +81,7 @@ Was this really the strongest 10 out of 110? No. Almost none of the 110 had been
 
 | ID | What | Status | Result or reason |
 |---|---|---|---|
-| V1 | 3-fold CV | Partly | Folds built (2,697 images; no capture or session info existed, so grouped by image). Only fold 0 was used. The fold-1 control finished but its score was not saved. Fold 2 and the six Plan B / YOLO fold notebooks never ran. **No result was ever confirmed on 3 folds.** |
+| V1 | 3-fold CV | Partly | Folds built (2,697 images; no capture or session info existed, so grouped by image). Only fold 0 was used. The fold-1 control finished but its score was not saved. Fold 2 was launched but its outcome was never recorded. The six Plan B / YOLO fold notebooks never ran. **No result was ever confirmed on 3 folds.** |
 | D1 | Accuracy by object size | Done | YOLO small/medium/large 0.664 / 0.751 / 0.536; RT-DETR-L 0.669 / 0.739 / 0.728 |
 | A1a-c | Hand-checked missing labels | Not run | Not allowed by the rules |
 | N1 | z-score | Screen | 0.6223, no real gain |
@@ -114,7 +114,7 @@ Was this really the strongest 10 out of 110? No. Almost none of the 110 had been
 | P2 | Patch training | Partly | 0.690 on image tiles, not comparable to full images |
 | P4 | Patch training + sliced inference | Failed | Coordinate bug, scored 0.0000 on two tries, dropped |
 | P5 | Extra high-resolution feature level | Not run | Time |
-| E1a | RT-DETRv2 | Done | Hugging Face version failed the Colab smoke test (rejected 16 channels). The official repo version ran on vast.ai: holdout about 0.67 (exact number not saved), tie |
+| E1a | RT-DETRv2 | Done | Hugging Face version failed the Colab smoke test (rejected 16 channels). The official repo version trained on vast.ai (own scorer 0.776, not comparable). Never re-scored on the holdout, so its real standing is unknown |
 | E1b / E1c | D-FINE-S / M | Done | Same as DF1 / DF2 |
 | E1d-E1j | DINO, Co-DETR, InternImage, Swin, FocalNet, ConvNeXt V2, DINOv2 | Not run | Seven separate setups; the MMDetection-based ones could not install on the first GPU box; budget |
 | A-C1 to G-C5 | 35 combinations | Not run | Only one hand-picked combination was run: Combo |

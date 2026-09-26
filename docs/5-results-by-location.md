@@ -37,7 +37,8 @@ Plan C beat Plan B v2 by 0.035 on the holdout but was not better on the public b
 | Sliced inference on that model | sliced only -0.11154, full + sliced -0.07007 |
 | SAM1 (real vs plastic) | AUC 0.708 apple / apple_plastic, 0.719 egg / egg_plastic |
 | Fold-1 control | Finished (about 5.7 GPU-hours); score not saved |
-| Fold-2 control, and Plan B / YOLO on folds 0 to 2 | Notebooks prepared, never started |
+| Fold-2 control | Launched together with fold 1; outcome and score never recorded |
+| Plan B / YOLO on folds 0 to 2 | Notebooks prepared, never started |
 | Day-1 diagnostics, first run | Some checkpoint diagnostics failed; repaired run gave the D1 numbers above |
 
 ### Colab smoke tests (no competition data, only "does the model run with 16 bands")
@@ -98,9 +99,9 @@ Also on Kaggle, 21 to 22 Sep:
 |---|---:|---:|---:|
 | D-FINE-S | 0.664 (AP75 0.805) | 0.779 | **0.670** (AP75 0.776) |
 | D-FINE-M | 0.694 | 0.786 | **0.672** (AP75 0.776) |
-| RT-DETRv2 | 0.673 | 0.776 | about 0.67 (exact value not saved) |
+| RT-DETRv2 | 0.673 | 0.776 | never run (no holdout score exists) |
 
-The "own scorer" numbers are not comparable with the rest; they looked like a big win until the models were scored on the same holdout the same way. See [mistakes](7-problems-and-mistakes.md).
+The "own scorer" numbers are not comparable with the rest; they looked like a big win until the two D-FINE models were scored on the same holdout the same way. RT-DETRv2 never got that check, so its true holdout score is unknown. See [mistakes](7-problems-and-mistakes.md).
 
 ### Full-length runs
 
