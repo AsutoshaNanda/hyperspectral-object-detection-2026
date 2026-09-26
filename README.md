@@ -6,7 +6,7 @@ Every number here comes from a saved result file, a run log, or a Kaggle submiss
 
 - Competition: https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026
 - Kaggle profile: https://www.kaggle.com/itsasup (team "Asutosha", solo)
-- Period covered: 11 Sep 2026 to 25 Sep 2026
+- Period covered: 11 Sep 2026 to 26 Sep 2026
 
 ## Bottom line
 
@@ -18,11 +18,12 @@ Every number here comes from a saved result file, a run log, or a Kaggle submiss
 | My best model on my own 300-image holdout | Combo, 0.672 |
 | Same Combo on the public board | 0.59852 (0.60242 after retraining on all labelled images) |
 | Experiments planned | 110 experiment records, 227 run slots |
-| Runs actually done | about 50, most of them short 10-epoch screens |
-| Money spent on vast.ai | about $28 (estimate, see [compute](docs/5-compute-kaggle-vastai.md)) |
-| Phase 2 (ranking set) | three prediction files ready, two more retrains still running on 25 Sep, nothing submitted yet |
+| Experiments actually tried | **90**, listed one by one in [docs/4-every-experiment-tried.md](docs/4-every-experiment-tried.md): 60 done, 16 failed, 3 partly, 11 prepared but never run |
+| Money spent on vast.ai | about $29 (estimate, see [compute](docs/6-compute-kaggle-vastai.md)) |
+| Best score on all 1,000 test images | combo_all, 0.596 (0.595 with flip TTA) |
+| Phase 2 (ranking set) | 3 files submitted on 26 Sep (best: combo_all 0.595 on the test half); 2 more planned for 27 Sep. The ranking-set score is revealed after the close |
 
-**Main lesson.** I chose models using one small holdout of 300 images. On it, almost every model scored about 0.67. On Kaggle's test images the same models scored about 0.58 to 0.61, and the two tests ranked the models differently. I kept trusting the small holdout and explained the gap away. The real gap to the top teams (about 0.06) was genuine. Details: [problems and mistakes](docs/6-problems-and-mistakes.md).
+**Main lesson.** I chose models using one small holdout of 300 images. On it, almost every model scored about 0.67. On Kaggle's test images the same models scored about 0.58 to 0.61, and the two tests ranked the models differently. I kept trusting the small holdout and explained the gap away. The real gap to the top teams (about 0.06) was genuine. Details: [problems and mistakes](docs/7-problems-and-mistakes.md).
 
 ## What is in this repo
 
@@ -31,22 +32,25 @@ Every number here comes from a saved result file, a run log, or a Kaggle submiss
 | [docs/1-competition.md](docs/1-competition.md) | The task, the metric, the two-phase scoring, the rules and how my reading of them changed |
 | [docs/2-what-i-studied.md](docs/2-what-i-studied.md) | My handwritten notes, past competitions, papers and code I read, with links |
 | [docs/3-plan-vs-what-was-done.md](docs/3-plan-vs-what-was-done.md) | The 110-experiment plan, why it was cut to a top 10 and then to tiers, and the status of every planned item |
-| [docs/4-results.md](docs/4-results.md) | Every measured result, grouped by where it ran |
-| [docs/5-compute-kaggle-vastai.md](docs/5-compute-kaggle-vastai.md) | Kaggle notebooks, the Colab attempt, the three vast.ai boxes, costs and setup |
-| [docs/6-problems-and-mistakes.md](docs/6-problems-and-mistakes.md) | Wrong decisions and technical problems, with what they cost |
-| [docs/7-timeline.md](docs/7-timeline.md) | Day by day |
+| [docs/4-every-experiment-tried.md](docs/4-every-experiment-tried.md) | **All 90 experiments tried**, one row each, including 10-epoch screens, smoke tests, crashed runs and runs that never started |
+| [docs/5-results-by-location.md](docs/5-results-by-location.md) | The same results in more detail (mAP50, mAP75, notes), grouped by where they ran |
+| [docs/6-compute-kaggle-vastai.md](docs/6-compute-kaggle-vastai.md) | Kaggle notebooks, the Colab attempt, the three vast.ai boxes, costs and setup |
+| [docs/7-problems-and-mistakes.md](docs/7-problems-and-mistakes.md) | Wrong decisions and technical problems, with what they cost |
+| [docs/8-timeline.md](docs/8-timeline.md) | Day by day |
 | [notes/](notes/) | Photos of my handwritten study notes (18 Sep) |
-| [results/](results/) | Raw evidence: ledgers, evaluation JSON files, Cascade R-CNN logs, submission snapshot |
+| [results/](results/) | Raw evidence: ledgers, evaluation JSON files, Cascade R-CNN logs, final retrain settings and per-round logs, submission snapshot |
 | [plan/](plan/) | The machine-readable experiment registry and configuration matrix |
 | [code/](code/) | Training runner, experiment modules, Kaggle notebooks, vast.ai scripts, tests |
 
 Not included: competition data, model weights, prediction CSV files and chat logs.
 
-## The models in one table
+## The main models in one table
 
-All are single models. Holdout = the same 300 labelled images for every row. Public = Kaggle's public board (about 51% of the 1,000 test images).
+These are only the full-length models. All 90 experiments, including the short 10-epoch screens (N, SP, H, S, M, P series), tails, smoke tests and failed runs, are in [docs/4-every-experiment-tried.md](docs/4-every-experiment-tried.md).
 
-| Model | What it is | Holdout mAP50-95 | Public |
+All are single models. Holdout = the same 300 labelled images for every row. Public = Kaggle's public board (about 51% of the 1,000 test images). Full test = all 1,000 test images (the board after 25 Sep).
+
+| Model | What it is | Holdout mAP50-95 | Public (full test) |
 |---|---|---:|---:|
 | Plan A | YOLO26m, 16 bands, 1024 px, 80 epochs | 0.655 | 0.590 |
 | Plan B v2 | RT-DETR-L, 16 bands, 640 px, 50 epochs, image stretched to square | 0.637 | 0.608 |
@@ -56,7 +60,10 @@ All are single models. Holdout = the same 300 labelled images for every row. Pub
 | Self-training | RT-DETR-L trained on real labels + Combo's confident predictions on the test images | 0.668 | 0.584 |
 | D-FINE-S / D-FINE-M / RT-DETRv2 | Other detector designs, ported to 16 bands | 0.670 / 0.672 / about 0.67 | not submitted |
 | Cascade R-CNN | MMDetection, ResNet-50 FPN, 16-band stem | 0.652 | not submitted |
-| combo_all | Combo recipe retrained on all 2,997 labelled images | none (no holdout left) | 0.602 |
+| combo_all | Combo recipe retrained on all 2,997 labelled images | none (no holdout left) | 0.602 (0.596) |
+| selftrain_all | Self-training recipe on all 2,997 labelled + 971 pseudo-labelled test images | none | 0.583 (0.575) |
+| selftrain_v2 | All 2,997 labelled + 993 test images pseudo-labelled by combo_all | none | (0.582) |
+| combo_st | Combo recipe on the same images as selftrain_v2 | none | (0.574) |
 
 ## Key links
 

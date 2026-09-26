@@ -1,0 +1,8 @@
+{
+  "base_checkpoint": "/workspace/combo_st/runs/combo_st/weights/best.pt",
+  "localization_finetune": null,
+  "tta": null,
+  "selected_checkpoint": "/workspace/combo_st/runs/combo_st/weights/best.pt",
+  "selected_checkpoint_sha256": "43763bf087d90d6e1330da519e460ca66601dd709b0c1ff6d445c0457116886a",
+  "selected_tta": false
+}

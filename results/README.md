@@ -10,5 +10,6 @@
 | [plan_c_audit.json](plan_c_audit.json), [plan_c_class_comparison.csv](plan_c_class_comparison.csv) | Plan C vs Plan B v2 per-class comparison |
 | [d1_size_ap/](d1_size_ap/) | Accuracy by object size for YOLO26m and RT-DETR-L, and the fold summary |
 | [cascade_rcnn/](cascade_rcnn/) | Cascade R-CNN holdout score, the scorer check against Ultralytics, and the run log |
+| [final_retrains/](final_retrains/) | Settings and model choice for combo_all, selftrain_all, selftrain_v2, combo_st; round-by-round logs for the last two. Those per-round scores are on images the models trained on, so they only show training health |
 
-Results from the vast.ai boxes that were not saved as files are in [docs/4-results.md](../docs/4-results.md), taken from the run logs at the time. Where a value was not saved, the docs say so.
+Results from the vast.ai boxes that were not saved as files are in [docs/5-results-by-location.md](../docs/5-results-by-location.md), taken from the run logs at the time. Where a value was not saved, the docs say so.

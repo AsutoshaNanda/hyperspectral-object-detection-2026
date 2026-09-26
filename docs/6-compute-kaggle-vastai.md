@@ -1,18 +1,18 @@
-# 5. Compute: Kaggle, Colab, vast.ai, Mac
+# 6. Compute: Kaggle, Colab, vast.ai, Mac
 
 ## Summary
 
 | Where | When | Hardware | Used for | Cost |
 |---|---|---|---|---|
 | Kaggle notebooks | 11 to 21 Sep | T4 (one run got a P100) | Plans A to D, folds, diagnostics, 10-epoch screens | Free, 30 GPU-hours per week (used up on 21 Sep) |
-| Google Colab | 21 Sep | T4 | Tried for D-FINE, RT-DETRv2, Cascade R-CNN | Free; blocked, no runs finished |
+| Google Colab | 20 to 22 Sep | T4 | 20 Sep: D-FINE and RT-DETRv2 smoke tests (no competition data). 22 Sep: Cascade R-CNN training, 7 tries | Free; training blocked, smoke tests only |
 | vast.ai box 1 | 22 Sep 11:02 to 23 Sep 16:06 UTC | 2 x RTX 3090, Utah, $0.581/h | Combo, tiers B and C, D-FINE, self-training | about $17 |
 | vast.ai box 2 | 24 Sep 16:19 to 25 Sep 04:05 UTC | 2 x RTX 3090, China, $0.324/h | combo_all, selftrain_all, Cascade R-CNN | about $4 |
 | Lightning AI | 25 Sep | H200 requested | Tried for the final retrains | Nothing ran (machine not assigned); dropped |
-| vast.ai box 3 | 25 Sep 10:41 UTC, still running | 2 x RTX 3090, Taiwan, $0.428/h | selftrain_v2, combo_st | about $7 (estimate for about 16 h) |
+| vast.ai box 3 | 25 Sep 10:41 to 26 Sep 04:51 UTC | 2 x RTX 3090, Taiwan, $0.428/h | selftrain_v2, combo_st | about $8 |
 | MacBook (M4 Pro, MPS) | 25 Sep | local | Test and ranking predictions, flip TTA | Free |
 
-Costs are estimates from the hourly price and running time, cross-checked with the balance I saw on the vast.ai page (for box 1: about $20 at the start, $9.30 after about 18 hours, $3.28 on 23 Sep 15:45 UTC). Stopped boxes also charged a small storage fee until destroyed. Total on vast.ai: about $28.
+Costs are estimates from the hourly price and running time, cross-checked with the balance I saw on the vast.ai page (for box 1: about $20 at the start, $9.30 after about 18 hours, $3.28 on 23 Sep 15:45 UTC). Stopped boxes also charged a small storage fee until destroyed (box 3: about $0.65 per day for its 100 GB disk). Total on vast.ai: about $29.
 
 ## Kaggle notebooks
 
@@ -22,9 +22,11 @@ Costs are estimates from the hourly price and running time, cross-checked with t
 - Measured times on a T4: 10-epoch RT-DETR screen 1 to 1.5 h, 10-epoch YOLO screen 30 to 45 min, full RT-DETR-L 50 epochs about 6.6 h, full YOLO26m 80 epochs about 3.2 h.
 - Only two GPU sessions at a time, and 30 GPU-hours per week. The quota ran out on 21 Sep with about 90 hours until reset, which was too late.
 
-## Google Colab (did not work)
+## Google Colab (smoke tests only)
 
-Colab was tried on 21 Sep for the three models that needed extra setup. The Kaggle API refused Colab's servers: private datasets returned 403 and the competition download returned 401, with the same key and the same `kaggle` version that worked on my Mac. Pinning versions and restarting did not help. Conclusion: Kaggle blocks those data-centre addresses. Colab was dropped.
+On 20 Sep, Colab ran model smoke tests that needed no competition data: D-FINE-S passed at 640 px with a random 16-band input layer; the RT-DETRv2 Hugging Face version failed.
+
+Colab was then tried on 21 to 22 Sep for the three models that needed extra setup. The Kaggle API refused Colab's servers: private datasets returned 403 and the competition download returned 401, with the same key and the same `kaggle` version that worked on my Mac. Pinning versions and restarting did not help. Conclusion: Kaggle blocks those data-centre addresses. Colab was dropped.
 
 ## vast.ai
 
@@ -48,7 +50,7 @@ Colab was tried on 21 Sep for the three models that needed extra setup. The Kagg
 - GPU 0: Combo (about 6 min per epoch at 1024 px, 5.5 h). GPU 1: screens, the localization-tail bug hunt, the D-FINE port.
 - Overnight: a queue script on the box ran the 10-epoch screens, then 50-epoch runs of D-FINE-S, D-FINE-M, RT-DETRv2 and SP2, then the Combo localization tail. Auto-stop was armed.
 - Disk filled up twice (80 of 128 GB, later 88%). Old image caches were deleted.
-- Paused on 23 Sep 16:06 UTC and then destroyed. Only the prediction CSV files had been copied to the Mac, not the model files. See [mistakes](6-problems-and-mistakes.md).
+- Paused on 23 Sep 16:06 UTC and then destroyed. Only the prediction CSV files had been copied to the Mac, not the model files. See [mistakes](7-problems-and-mistakes.md).
 
 ### Box 2 (24 to 25 Sep)
 
@@ -56,9 +58,11 @@ Colab was tried on 21 Sep for the three models that needed extra setup. The Kagg
 - Cascade R-CNN needed its own Python environment because MMDetection does not support PyTorch 2.14: Python 3.10, PyTorch 2.1.2 (CUDA 12.1), mmcv 2.1.0, mmdet 3.3.0, `setuptools<70`.
 - Both models were copied to the Mac with checksum checks, then the box was stopped. It sat idle about 30 minutes because the Mac-side watcher had stopped while the laptop was closed.
 
-### Box 3 (25 Sep)
+### Box 3 (25 to 26 Sep)
 
-- selftrain_v2 on GPU 0 (about 10 min per epoch), combo_st on GPU 1 (about 19 min per epoch). Both use all 2,997 labelled images plus 993 pseudo-labelled test images, and no ranking images.
+- selftrain_v2 on GPU 0 (about 10 min per epoch, done 25 Sep about 20:20 UTC), combo_st on GPU 1 (about 19 min per epoch, done 26 Sep about 04:45 UTC). Both use all 2,997 labelled images plus 993 pseudo-labelled test images, and no ranking images.
+- The balance ran low mid-run ($1.66); $5 was added. A backup copy of the half-trained model was kept on the Mac in case the credit ran out.
+- Both models, the final-round models and the full round-by-round logs were copied to the Mac with checksum checks before the box was stopped (a lesson from box 1).
 
 ## Mac
 

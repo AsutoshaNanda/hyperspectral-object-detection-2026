@@ -1,4 +1,4 @@
-# 6. Problems and mistakes
+# 7. Problems and mistakes
 
 ## Part 1: decisions that went wrong
 
@@ -22,7 +22,7 @@ The two tests also ranked models differently:
 - After being used for dozens of decisions, the holdout was no longer an untouched test. This was noted on 19 Sep but not acted on.
 - When all methods landed at about 0.67, I read it as "the ceiling of this dataset". The frozen Phase 1 results show top teams at about 0.67 **on the real test**, while I was at 0.605. The ceiling was mine, not the dataset's.
 
-**Cost.** Models were picked and tuned on a test that did not reflect the real images. Most of the roughly $28 spent on vast.ai went into experiments judged by this holdout.
+**Cost.** Models were picked and tuned on a test that did not reflect the real images. Most of the roughly $29 spent on vast.ai went into experiments judged by this holdout.
 
 **Lesson.** When a small local test and a bigger real test disagree, the disagreement is the warning. Use more folds or a larger validation set, and take "should we change tactics?" seriously instead of defending the plan.
 
@@ -50,9 +50,25 @@ On box 1 the running estimate said about $5 spent when about $10.70 had actually
 
 Notes said Phase 2 would be 23 to 25 Sep. The organizers had moved it to 25 to 27 Sep (notice 742487). This caused confusion about when the ranking images would appear.
 
-### 8. Misleading numbers shown next to real ones
+### 8. The last retrain of Combo made it worse
+
+combo_st (Combo recipe plus 993 pseudo-labelled test images) scored 0.574 on the full test, against 0.596 for combo_all without them. The same pseudo-labels helped the self-training model (+0.006). Why Combo got worse is not known. One untested guess is that its spectral-augmentation copy doubled the effect of wrong pseudo-labels.
+
+### 9. Misleading numbers shown next to real ones
 
 After retraining on all labelled images (24 Sep), the models were scored on images they had trained on (0.795 and 0.751). These numbers mean nothing and should not have been put in the same table as real scores.
+
+## What the top teams probably did differently
+
+This is a guess from the file names on the Phase 1 results table ([743224](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743224)), not proof:
+
+- Much bigger models (names mention YOLO26x, Co-DINO with Swin, DINOv3, RF-DETR, DEIM). I used RT-DETR-L.
+- Bigger images (1536, 1720 px). I used 640 and 1024.
+- More test-time views (6 to 8 flips and sizes). I used 2.
+- Work aimed at box precision (box loss, box refinement). I knew this was my weak spot but did not fix it.
+- Some names also suggest several models combined, which is against the rules; the organizers replace those scores with the team's best single-model score.
+
+My gap of about 0.06 looks mostly like model size and compute, not one missing setting. Lesson for next time: try one big modern model at a large image size early, before weeks of tuning a medium one.
 
 ## Part 2: technical problems
 
@@ -78,3 +94,8 @@ After retraining on all labelled images (24 Sep), the models were scored on imag
 | Plan D's first run landed on a P100 GPU | CUDA "no kernel image" error | Reran on CPU |
 | Saved Plan C confusion matrices were all zeros | Could not read false positives / negatives | Treated as unavailable |
 | Ranking images not downloadable at release time | Delay on 25 Sep | Downloaded by hand from the Kaggle page |
+| Plan C's Kaggle session stopped after epoch 35 of 50 | Run incomplete | Resumed from the saved checkpoint to finish |
+| Kaggle allows only 2 GPU notebooks at once, 30 GPU-hours per week | Screens ran in pairs; quota gone by 21 Sep | Moved to vast.ai |
+| D-FINE smoke test at 128 px | Failed (position encoding needs 640 px) | Ran at 640 px |
+| RT-DETRv2 Hugging Face version rejected 16-channel input | Smoke test failed on Colab | Used the official RT-DETR repo on vast.ai instead |
+| Colab: `/kaggle/input` is read-only, download errors were hidden, `--unzip` flag not supported | Several failed Colab tries before the real block (403/401) was seen | Colab dropped |

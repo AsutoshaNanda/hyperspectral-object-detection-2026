@@ -1,0 +1,8 @@
+{
+  "base_checkpoint": "/workspace/selftrain_v2/runs/selftrain_v2/weights/best.pt",
+  "localization_finetune": null,
+  "tta": null,
+  "selected_checkpoint": "/workspace/selftrain_v2/runs/selftrain_v2/weights/best.pt",
+  "selected_checkpoint_sha256": "8a0247e00f32015041e8673318af6947d3925cf81d0c59a6604bbb3533e24c6f",
+  "selected_tta": false
+}

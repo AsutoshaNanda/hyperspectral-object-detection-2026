@@ -1,4 +1,4 @@
-# 7. Timeline
+# 8. Timeline
 
 Times are UTC where known.
 
@@ -12,8 +12,9 @@ Times are UTC where known.
 | Before 19 Sep | Plan C (square padding): holdout 0.66981, public 0.60691; with low confidence floor 0.61001 |
 | 18 Sep | Handwritten study notes ([notes/](../notes/)) |
 | 19 Sep | 5-day roadmap: 110 experiment records, 227 run slots. Folds built (V1). Size diagnostics (D1) measured. Execution tracker and code modules written |
-| 19 to 20 Sep | Fold-0 control (50 epochs): 0.68923. TTA and sliced-inference screen: nothing passed. SAM1: AUC about 0.71. Plan cut to a top 30, then a rolling top 10 |
-| 21 Sep | 10-epoch screens on Kaggle: H1b 0.6539, S1b 0.6420, P1 0.6343, M1d 0.6273, N1 0.6223 vs control 0.6201. Localization tail collapsed to 0.031 (bug). Kaggle GPU quota used up. Colab blocked by Kaggle (403/401) |
+| 19 to 20 Sep | Fold-0 control (50 epochs): 0.68923. TTA and sliced-inference screen: nothing passed. SAM1: AUC about 0.71. Colab smoke tests: D-FINE-S passed at 640 px (random input layer), RT-DETRv2 (Hugging Face) failed. Fold-1 control finished (score not saved). Plan cut to a top 30, then a rolling top 10 |
+| 21 to 22 Sep (Kaggle) | 10-epoch screens: H1b 0.6539, S1b 0.6420, P1 0.6343, M1d 0.6273, N1 0.6223 vs control 0.6201. D-FINE-S crashed at start (3-channel stats step), patched. 10-epoch localization tail collapsed to 0.031, 12-epoch tail had the same bug. Cascade R-CNN notebook built. Kaggle weekly GPU quota used up |
+| 22 Sep early morning | Cascade R-CNN on Colab: 7 tries, never reached training. Kaggle blocks Colab (403/401). Decided to rent a GPU on vast.ai |
 | 22 Sep morning | Organizer answers (737136, 741902, 739853): pseudo-labels and self-training on test images allowed, no hand-fixed labels. Phase 2 notice (742487): new scoring and dates, ranking images inference-only |
 | 22 Sep 11:02 | vast.ai box 1 rented (2 x RTX 3090). Kaggle blocks the box too; data uploaded from the Mac |
 | 22 Sep | Combo started. Localization-tail bug found (warm-up learning-rate spike) and fixed. D-FINE-S ported to 16 bands. Tier B/C screens run. 18:04 Combo holdout 0.67216 (beat Plan C by 0.002). Combo submitted as a check: public 0.59852. Overnight queue with auto-stop set up |
@@ -29,4 +30,9 @@ Times are UTC where known.
 | 25 Sep 09:34 | Three Phase 2 files ready (combo_all, selftrain_all, Plan C; test + ranking; flip TTA) |
 | 25 Sep 10:41 | Box 3 rented (2 x RTX 3090, Taiwan). Lightning AI tried and dropped. selftrain_v2 and combo_st started on all labelled images + 993 pseudo-labelled test images |
 | 25 Sep 10:55 | Read the organizers' Phase 1 results (743224): 0.60486, rank 104 of 300. First place 0.67179 |
-| 26 to 27 Sep | Planned: finish box 3 runs, submit Phase 2 files, mark the final two before 27 Sep 08:00 UTC |
+| 25 Sep about 20:20 | selftrain_v2 finished, copied to the Mac with its full logs; Phase 2 file made |
+| 25 Sep 21:03 | Kaggle's board now scores all 1,000 test images: combo_all 0.596, selftrain_all 0.575 (both lower than their 51% scores) |
+| 26 Sep 04:51 | combo_st finished, copied with its logs; box 3 stopped |
+| 26 Sep 05:07 to 05:14 | Submitted: selftrain_v2 0.58155, combo_st 0.57443, combo_all Phase 2 with flip TTA 0.59517 (all on the full test) |
+| 26 Sep | Looked at the Phase 1 results table: several top file names suggest bigger models, bigger images and more TTA views (a guess, not proof) |
+| 27 Sep (planned) | Submit the selftrain_all and Plan C Phase 2 files, then mark the final two before 08:00 UTC |

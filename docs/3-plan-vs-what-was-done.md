@@ -59,6 +59,8 @@ Chosen from measured evidence, run as 10-epoch screens on fold 0 against a 10-ep
 | DF1 | D-FINE-S | Built for tight boxes |
 | E1a | RT-DETRv2 | Successor of the main model family |
 
+Was this really the strongest 10 out of 110? No. Almost none of the 110 had been run, so they could not be ranked by score. The 10 were an evidence-guided bet: they targeted the weaknesses that had been measured (loose boxes, small objects) and skipped ideas that early tests had already ruled out (sliced inference, most TTA).
+
 ## The tier list (22 Sep, for vast.ai)
 
 | Tier | Items | Decision at the time |
@@ -75,15 +77,15 @@ Chosen from measured evidence, run as 10-epoch screens on fold 0 against a 10-ep
 
 ## Status of every planned item
 
-"Holdout" = the shared 300-image holdout. "Screen" = 10 epochs on fold 0, compared with the 10-epoch control (0.6201). Full numbers are in [4-results.md](4-results.md).
+"Holdout" = the shared 300-image holdout. "Screen" = 10 epochs on fold 0, compared with the 10-epoch control (0.6201). Full numbers are in [5-results-by-location.md](5-results-by-location.md).
 
 | ID | What | Status | Result or reason |
 |---|---|---|---|
-| V1 | 3-fold CV | Partly | Folds built (2,697 images; no capture or session info existed, so grouped by image). Only fold 0 was used. The fold-1 control finished but its score was not saved. Fold 2 never ran. **No result was ever confirmed on 3 folds.** |
+| V1 | 3-fold CV | Partly | Folds built (2,697 images; no capture or session info existed, so grouped by image). Only fold 0 was used. The fold-1 control finished but its score was not saved. Fold 2 and the six Plan B / YOLO fold notebooks never ran. **No result was ever confirmed on 3 folds.** |
 | D1 | Accuracy by object size | Done | YOLO small/medium/large 0.664 / 0.751 / 0.536; RT-DETR-L 0.669 / 0.739 / 0.728 |
 | A1a-c | Hand-checked missing labels | Not run | Not allowed by the rules |
 | N1 | z-score | Screen | 0.6223, no real gain |
-| N2 / N3 / N4 | Robust min-max / SNV / area | Screen | 0.617 / 0.594 / 0.597, all worse |
+| N2 / N3 / N4 | Robust min-max / SNV / area | Screen | 0.617 / 0.594 / 0.597, all worse (N3 had a Kaggle notebook ready but ran on vast.ai) |
 | SP1 / SP3 | MNF / MSC | Screen | 0.6198 / 0.5587, worse |
 | SP2 | Savitzky-Golay | Screen, then 50 epochs | 0.6264 (barely passed), then holdout 0.660, lost to Combo |
 | SP4 | Best SP + augmentation | Not run | SP2 lost at full length |
@@ -93,8 +95,8 @@ Chosen from measured evidence, run as 10-epoch screens on fold 0 against a 10-ep
 | S1 ViT variants | Patch-embedding start for ViT models | Not run | No ViT model was run |
 | G1a vs G1b | Stretch vs square padding | Done (old split) | Plan B v2 0.637 vs Plan C 0.670 on holdout |
 | G1c | Native aspect ratio | Screen | 0.6051, worse |
-| L1a-d | Localization tail | Done after a bug fix | First run collapsed to 0.031 (bug). After the fix, on the fold-0 control: 0.697 / 0.700 / 0.697 vs base 0.689. On Combo: no gain |
-| DF1 | D-FINE-S | Done | Holdout 0.670, tie |
+| L1a-d | Localization tail | Done after a bug fix | On Kaggle: 10-epoch run collapsed to 0.031, 12-epoch run had the same bug, 15-epoch never ran. On vast.ai the bug was reproduced (score 0.000 with all weights loaded) and fixed. After the fix, on the fold-0 control: 0.697 / 0.700 / 0.697 vs base 0.689. On Combo: no gain |
+| DF1 | D-FINE-S | Done | Colab smoke: failed at 128 px, passed at 640 px with a random input layer, failed with the RGB-expanded one. Kaggle run crashed at start (3-channel stats step), patched. Ran on vast.ai: holdout 0.670, tie |
 | DF2 | D-FINE-M | Done | Holdout 0.672, tie |
 | DF3 | D-FINE box head inside RT-DETR | Not run | D-FINE only tied; custom research code |
 | M1d | Multi-scale 0.10 (transformer) | Screen | 0.6273, small pass, not added to Combo |
@@ -103,20 +105,22 @@ Chosen from measured evidence, run as 10-epoch screens on fold 0 against a 10-ep
 | T4, P3 | Sliced inference | Done (fold 0) | -0.070 and -0.112 |
 | SN1 / SN2 | Soft-NMS | Not run | Time; other inference tweaks gained almost nothing |
 | SAM1 | Real vs plastic spectral test | Done | AUC 0.708 (apple) and 0.719 (egg), where 0.5 = guessing |
-| SAM2 / SAM3 | SAM feature inside the detector | Not run | Needed Cascade R-CNN first; weak SAM1 result; time |
+| SAM2 / SAM3 | SAM feature inside the detector | Not run | Never built: needed Cascade R-CNN first, which only worked on 24 Sep; weak SAM1 result; time |
 | PL1 | Pseudo-label audit against hidden true labels | Not run as planned | Only a count/confidence summary of the test pseudo-labels was done |
 | PL2 | Train with hand-confirmed missing labels | Not run | Not allowed by the rules |
 | PL3 | Teacher-student | Done as self-training | Holdout 0.668 |
-| CR1 | Cascade R-CNN | Done on the second try | Failed to install on 23 Sep; ran 24 Sep: holdout 0.652, lost |
+| CR1 | Cascade R-CNN | Done on the last try | Kaggle push refused (quota); 7 Colab tries never reached training (Kaggle blocks Colab); install failed on vast.ai box 1 (PyTorch 2.14); ran on box 2 in a PyTorch 2.1 environment: holdout 0.652, lost |
 | P1 | 1024 px | Screen | 0.6343, used in Combo |
 | P2 | Patch training | Partly | 0.690 on image tiles, not comparable to full images |
-| P4 | Patch training + sliced inference | Failed | Coordinate bug, scored 0.0000, dropped |
+| P4 | Patch training + sliced inference | Failed | Coordinate bug, scored 0.0000 on two tries, dropped |
 | P5 | Extra high-resolution feature level | Not run | Time |
-| E1a | RT-DETRv2 | Done | Holdout about 0.67 (exact number not saved), tie |
+| E1a | RT-DETRv2 | Done | Hugging Face version failed the Colab smoke test (rejected 16 channels). The official repo version ran on vast.ai: holdout about 0.67 (exact number not saved), tie |
 | E1b / E1c | D-FINE-S / M | Done | Same as DF1 / DF2 |
 | E1d-E1j | DINO, Co-DETR, InternImage, Swin, FocalNet, ConvNeXt V2, DINOv2 | Not run | Seven separate setups; the MMDetection-based ones could not install on the first GPU box; budget |
 | A-C1 to G-C5 | 35 combinations | Not run | Only one hand-picked combination was run: Combo |
 | Top-15 / top-10 / top-3 stages | Multi-fold verification | Not run | Time and budget |
+
+Every single attempt, including smoke tests and crashed runs, is listed in [4-every-experiment-tried.md](4-every-experiment-tried.md).
 
 The formal experiment tracker ended with only 3 of 227 run slots marked "verified" (V1 and the two D1 checks). Later results were recorded in other files ([results/](../results/)) and in run logs, not in the tracker.
 
@@ -130,4 +134,6 @@ The formal experiment tracker ended with only 3 of 227 run slots marked "verifie
 | NMS IoU sweep | Cheap inference tuning | Failed (missing test split, filled the disk) |
 | combo_all / selftrain_all | Model files were lost; retrain on all 2,997 images | Public 0.602 / 0.583 |
 | Manual flip TTA | Built-in TTA did nothing for RT-DETR | Works; no holdout score measured |
-| selftrain_v2 / combo_st | All labelled images + 993 pseudo-labelled test images | Running on 25 Sep, no result yet |
+| selftrain_v2 / combo_st | All labelled images + 993 pseudo-labelled test images | Full test 0.582 (better than selftrain_all) / 0.574 (worse than combo_all) |
+| Queued extras: 1280 px, RT-DETR-X, hard-class focus | Last ideas on box 1 | Never started |
+| D-FINE-L | Bigger D-FINE | Skipped: D-FINE only tied |
