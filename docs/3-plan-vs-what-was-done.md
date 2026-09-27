@@ -128,12 +128,12 @@ The formal experiment tracker ended with only 3 of 227 run slots marked "verifie
 
 | Item | Why | Result |
 |---|---|---|
-| Combo | Combine the three best screens | Holdout 0.672, public 0.599 |
-| Self-training | Allowed from 22 Sep | Holdout 0.668, public 0.584 |
+| Combo | Combine the three best screens | Holdout 0.672, public 0.599, full test 0.588 |
+| Self-training | Allowed from 22 Sep | Holdout 0.668, public 0.584, full test 0.579 |
 | Full-data retrain (2,397 images) | More data | Stopped at epoch 15 of 50 (budget), no score |
 | NMS IoU sweep | Cheap inference tuning | Failed (missing test split, filled the disk) |
 | combo_all / selftrain_all | Model files were lost; retrain on all 2,997 images | Public 0.602 / 0.583 |
-| Manual flip TTA | Built-in TTA did nothing for RT-DETR | Works; no holdout score measured |
+| Manual flip TTA | Built-in TTA did nothing for RT-DETR | Works. On the full test: +0.004 for Plan C and selftrain_all, about zero for combo_all |
 | selftrain_v2 / combo_st | All labelled images + 993 pseudo-labelled test images | Full test 0.582 (better than selftrain_all) / 0.574 (worse than combo_all) |
 | Queued extras: 1280 px, RT-DETR-X, hard-class focus | Last ideas on box 1 | Never started |
 | D-FINE-L | Bigger D-FINE | Skipped: D-FINE only tied |

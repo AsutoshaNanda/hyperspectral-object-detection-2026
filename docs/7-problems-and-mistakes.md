@@ -8,13 +8,16 @@
 
 The two tests also ranked models differently:
 
-| Model | Holdout (300 images) | Public (about 510 test images) |
-|---|---:|---:|
-| Combo | 0.672 (1st) | 0.599 |
-| Plan C | 0.670 | 0.607 / 0.610 |
-| Self-training | 0.668 | 0.584 |
-| Plan B v2 | 0.637 (last) | 0.608 |
-| Plan D (Plan B v2 model, low confidence floor) | - | 0.610 (best) |
+| Model | Holdout (300 images) | Public (about 510 test images) | Full test (all 1,000, scored after 25 Sep) |
+|---|---:|---:|---:|
+| Combo | 0.672 (1st) | 0.599 | 0.588 (3rd) |
+| Plan C | 0.670 (2nd) | 0.607 | 0.599 (2nd) |
+| Self-training | 0.668 (3rd) | 0.584 | 0.579 (5th) |
+| Plan A YOLO26m | 0.655 (4th) | 0.590 | 0.581 (4th) |
+| Plan B v2 | 0.637 (last) | 0.608 | 0.603 (1st) |
+| Plan D (Plan B v2 model, low confidence floor) | - | 0.610 | 0.605 (my frozen Phase 1 score) |
+
+The full-test scores arrived after the decisions were made, but they confirm the problem: the holdout's order was wrong. It also means the square-padding "win" (+0.035 on the holdout) did not hold on the real test (Plan C 0.599 vs Plan B v2 0.603).
 
 **Why it was wrong.**
 - The public board uses about 51% of 1,000 test images, about 510 images. That is a larger sample than my 300. I set a rule to ignore the public board because it was "only 51%", but my holdout was even smaller.

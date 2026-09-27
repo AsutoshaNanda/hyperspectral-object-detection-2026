@@ -9,7 +9,7 @@ How to read it:
   - "holdout" = the shared 300 held-out labelled images.
   - "screen" = 10-epoch fold-0 validation, only comparable to the 10-epoch control (0.6201).
   - "public" = Kaggle public board, about 51% of the test images (until 25 Sep).
-  - "full test" = all 1,000 test images (Kaggle's board after the Phase 1 freeze on 25 Sep).
+  - "full test" = all 1,000 test images. After the Phase 1 freeze on 25 Sep, Kaggle re-scored every submission this way, so Kaggle's page now shows these numbers instead of the old 51% ones.
 - **Outcome**: Done, Failed (crashed or broken), Partly (ran but gave no usable score), Not run.
 
 Detailed numbers (mAP50, mAP75, per-class) are in [5-results-by-location.md](5-results-by-location.md).
@@ -19,13 +19,13 @@ Detailed numbers (mAP50, mAP75, per-class) are in [5-results-by-location.md](5-r
 | # | Experiment | Length | Result | Outcome |
 |---:|---|---|---|---|
 | 1 | Plan A first check: YOLO26m, 16 bands | 1 epoch | Crashed: invalid CUDA device | Failed |
-| 2 | Plan B v1: RT-DETR-L, 16 bands, 640 px | 1 epoch | val 0.281, public 0.242 (submitted by mistake) | Done |
-| 3 | Plan A recovery: YOLO26m, 16 bands, 1024 px | 80 | val 0.699, holdout 0.655, public 0.590 | Done |
-| 4 | Plan B v2: RT-DETR-L, 640 px, image stretched to square | 50 | val 0.666, holdout 0.637, public 0.608 | Done |
+| 2 | Plan B v1: RT-DETR-L, 16 bands, 640 px | 1 epoch | val 0.281, public 0.242, full test 0.233 (submitted by mistake) | Done |
+| 3 | Plan A recovery: YOLO26m, 16 bands, 1024 px | 80 | val 0.699, holdout 0.655, public 0.590, full test 0.581 | Done |
+| 4 | Plan B v2: RT-DETR-L, 640 px, image stretched to square | 50 | val 0.666, holdout 0.637, public 0.608, full test 0.603 (submitted 3 times, same score) | Done |
 | 5 | Plan D v1: Plan B v2 model, keep boxes down to 0.001 confidence, 300 per image | Inference | Crashed on a P100 GPU (CUDA kernel error) | Failed |
-| 6 | Plan D v2: same, run on CPU | Inference | public 0.610 (best public score) | Done |
-| 7 | Plan C: RT-DETR-L, image padded to square | 50 | val 0.701, holdout 0.670, public 0.607. The Kaggle session stopped after epoch 35; training was resumed from the saved checkpoint | Done |
-| 8 | Plan C with 0.001 confidence floor, 300 boxes | Inference | public 0.610 | Done |
+| 6 | Plan D v2: same, run on CPU | Inference | public 0.610, full test **0.60486**. This is the file the organizers froze as my Phase 1 score | Done |
+| 7 | Plan C: RT-DETR-L, image padded to square | 50 | val 0.701, holdout 0.670, public 0.607, full test 0.599. The Kaggle session stopped after epoch 35; training was resumed from the saved checkpoint | Done |
+| 8 | Plan C with 0.001 confidence floor, 300 boxes | Inference | public 0.610, full test 0.604 | Done |
 
 ## B. Roadmap diagnostics (19 to 20 Sep, Kaggle and Colab)
 
@@ -76,7 +76,7 @@ All screens: RT-DETR-L, square pad, 640 px, fold 0. Pass = at least +0.005 over 
 
 | # | Experiment | Length | Result | Outcome |
 |---:|---|---|---|---|
-| 42 | Combo = H1b + S1b + P1 (spectral-aug copy, RGB-mean input layer, 1024 px), fold-0 training images (1,796) | 50 | val 0.701, holdout **0.672**, public 0.599. First launch crashed on a folder-path bug, fixed | Done |
+| 42 | Combo = H1b + S1b + P1 (spectral-aug copy, RGB-mean input layer, 1024 px), fold-0 training images (1,796) | 50 | val 0.701, holdout **0.672**, public 0.599, full test 0.588. First launch crashed on a folder-path bug, fixed | Done |
 | 43 | SP2: Savitzky-Golay spectral smoothing | 10 | screen 0.6264 (barely passed) | Done |
 | 44 | L1 bug reproduction: 3-epoch tail | 3 | All 941 weights loaded, score still fell to 0.000. Cause found: warm-up learning-rate spike | Done |
 | 45 | L1 fix test: 3-epoch tail with warm-up turned off | 3 | 0.689 to 0.698 | Done |
@@ -100,7 +100,7 @@ All screens: RT-DETR-L, square pad, 640 px, fold 0. Pass = at least +0.005 over 
 | 63 | Cascade R-CNN install test | - | mmcv would not build on PyTorch 2.14 | Failed |
 | 64 | PL1 (simplified): count and confidence of Combo's pseudo-labels on test images | Check | 971 of 1,000 images, about 3.6 boxes each, mean confidence 0.87, all 18 classes | Done |
 | 65 | Self-training, first launch | - | Crashed: image and label IDs did not match (symlinks) | Failed |
-| 66 | Self-training: new RT-DETR-L on 1,796 real + 971 pseudo-labelled test images | 50 | holdout 0.668, public 0.584 | Done |
+| 66 | Self-training: new RT-DETR-L on 1,796 real + 971 pseudo-labelled test images | 50 | holdout 0.668, public 0.584, full test 0.579 | Done |
 | 67 | Combo + Ultralytics built-in TTA | Inference | holdout 0.672, identical to Combo. Later found the option does nothing for RT-DETR, so not a real test | Failed |
 | 68 | P2: patch training (image tiles upscaled 2x) | 30 | 0.690 on tiles, not comparable with full images | Partly |
 | 69 | P4: P2 model with sliced inference, 2 tries | Inference | 0.0000 both times (box-coordinate bug); dropped | Failed |
@@ -129,7 +129,7 @@ The Combo and Self-training models had been lost with box 1, so they were retrai
 | 80 | Built-in TTA check on combo_all | Inference | Same box count as without TTA (260,155): confirmed it does nothing | Done |
 | 81 | Manual flip TTA written and checked | Inference | 282,784 boxes; 93.7% of confident boxes match the normal prediction | Done |
 | 82 | Phase 2 files with flip TTA: combo_all, selftrain_all, Plan C (1,000 test + 1,000 ranking) | Inference | 559,119 / 511,520 / 525,108 rows, all checks passed | Done |
-| 83 | Plan C resubmitted | Inference | public 0.610 (same file, same score) | Done |
+| 83 | Plan C resubmitted | Inference | public 0.610, full test 0.604 (same file, same score) | Done |
 | 84 | Lightning AI (80 free GPU hours): H200 requested | - | Machine never assigned; dropped | Failed |
 
 ## G. vast.ai box 3 (25 to 26 Sep, 2 x RTX 3090) and final submissions
@@ -138,18 +138,20 @@ The Combo and Self-training models had been lost with box 1, so they were retrai
 |---:|---|---|---|---|
 | 85 | selftrain_v2: all 2,997 + 993 test images pseudo-labelled by combo_all with flip TTA | 50 (best round 48) | full test **0.582** (+0.006 over selftrain_all) | Done |
 | 86 | combo_st: Combo recipe on the same 3,990 images | 50 (best round 50) | full test 0.574 (-0.021 vs combo_all, got worse) | Done |
-| 87 | combo_all Phase 2 file with flip TTA | Inference | full test **0.595** (0.596 without TTA, so TTA made no difference) | Done |
-| 88 | selftrain_all Phase 2 file | Inference | To be submitted on 27 Sep; no score yet | Not run |
-| 89 | Plan C Phase 2 file | Inference | To be submitted on 27 Sep; no score yet | Not run |
-| 90 | Kaggle re-score of earlier files on all 1,000 test images | Check | combo_all 0.596, selftrain_all 0.575 (both lower than their 51% scores) | Done |
+| 87 | combo_all Phase 2 file with flip TTA | Inference | full test **0.595** (0.596 without TTA, so for this model TTA made no difference) | Done |
+| 88 | selftrain_all Phase 2 file with flip TTA (submitted 27 Sep) | Inference | full test 0.579 (+0.004 over the same model without TTA) | Done |
+| 89 | Plan C Phase 2 file with flip TTA (submitted 27 Sep) | Inference | full test **0.608**, best Phase 2 file (+0.004 over the same model without TTA) | Done |
+| 90 | Kaggle re-score of every earlier file on all 1,000 test images | Check | Every file scored lower than on the 51% board (by 0.005 to 0.010). Best Phase 1 file: Plan D 0.60486 | Done |
 
 ## Counts
 
 | Outcome | Rows |
 |---|---:|
-| Done | 60 |
+| Done | 62 |
 | Failed | 16 |
 | Partly | 4 |
-| Not run | 10 |
+| Not run | 8 |
 
-The best single result on the full 1,000 test images is **combo_all at 0.596** (0.595 with flip TTA). The organizers' frozen Phase 1 score is 0.60486 (rank 104 of 300); first place is 0.67179.
+Best results on the full 1,000 test images: Phase 1 file **Plan D 0.60486** (frozen as my Phase 1 score, rank 104 of 300; first place 0.67179). Phase 2 file **Plan C with flip TTA 0.60798**.
+
+**Final picks for Phase 2** (marked by me on Kaggle on 27 Sep, before the 08:00 UTC deadline): Plan C Phase 2 (0.608) and combo_all Phase 2 (0.595). Kaggle's API does not show which files are marked, so this comes from my own record. The ranking-set score is revealed after the close.

@@ -6,10 +6,11 @@ Times are UTC where known.
 |---|---|
 | Before 11 Sep | Research on the task and past competitions. Training runner written (`submission01_yolo16M.py`). First YOLO26m notebook run hit an invalid CUDA device error |
 | 11 Sep | Review of the runner: it made a holdout but never scored it, reruns deleted old data, split balancing could silently fall back to random. Fixed. Plan B v1 (RT-DETR-L, 1 epoch) submitted by mistake: 0.24195. Rule added: no submission unless holdout is at least 0.50. YOLO recovery notebook (80 epochs) and Plan B v2 (50 epochs) started on Kaggle |
-| 11 to 13 Sep | Plan A YOLO26m: holdout 0.65471, public 0.58967. Plan B v2 RT-DETR-L: holdout 0.63706, public 0.60836. The two tests disagreed on which was better. Found the big mAP50 vs mAP75 gap (box tightness) |
+| 11 to 13 Sep | Plan A YOLO26m submitted 11 Sep 19:47: holdout 0.65471, public 0.58967. Plan B v2 RT-DETR-L submitted 12 Sep 07:19: holdout 0.63706, public 0.60836. The two tests disagreed on which was better. Found the big mAP50 vs mAP75 gap (box tightness) |
 | 13 Sep | Score-improvement plan written. Public rank 46, leader 0.67943 |
-| 14 Sep | Plan D (low confidence floor, same model) failed on a P100, rerun on CPU. Later public 0.61008 |
-| Before 19 Sep | Plan C (square padding): holdout 0.66981, public 0.60691; with low confidence floor 0.61001 |
+| 14 Sep | Plan D (low confidence floor, same model) failed on a P100, rerun on CPU |
+| 17 Sep 12:57 | Plan D submitted: public 0.61008. Plan B v2 resubmitted twice. (Plan D later became my frozen Phase 1 score, 0.60486 on all 1,000 test images) |
+| 18 Sep 14:08 and 15:00 | Plan C (square padding) submitted: holdout 0.66981, public 0.60691; with low confidence floor 0.61001 |
 | 18 Sep | Handwritten study notes ([notes/](../notes/)) |
 | 19 Sep | 5-day roadmap: 110 experiment records, 227 run slots. Folds built (V1). Size diagnostics (D1) measured. Execution tracker and code modules written |
 | 19 to 20 Sep | Fold-0 control (50 epochs): 0.68923. TTA and sliced-inference screen: nothing passed. SAM1: AUC about 0.71. Colab smoke tests: D-FINE-S passed at 640 px (random input layer), RT-DETRv2 (Hugging Face) failed. Folds 1 and 2 launched; fold 1 finished (score not saved), fold 2's outcome not recorded. Plan cut to a top 30, then a rolling top 10 |
@@ -35,4 +36,6 @@ Times are UTC where known.
 | 26 Sep 04:51 | combo_st finished, copied with its logs; box 3 stopped |
 | 26 Sep 05:07 to 05:14 | Submitted: selftrain_v2 0.58155, combo_st 0.57443, combo_all Phase 2 with flip TTA 0.59517 (all on the full test) |
 | 26 Sep | Looked at the Phase 1 results table: several top file names suggest bigger models, bigger images and more TTA views (a guess, not proof) |
-| 27 Sep (planned) | Submit the selftrain_all and Plan C Phase 2 files, then mark the final two before 08:00 UTC |
+| 27 Sep 04:40 and 04:42 | Submitted the last two Phase 2 files: selftrain_all 0.57949, Plan C **0.60798** (best Phase 2 file). Kaggle's list now shows every file re-scored on all 1,000 test images |
+| 27 Sep 04:48 | Marked the two finals: Plan C Phase 2 (0.608) and combo_all Phase 2 (0.595) |
+| 27 Sep 08:00 | Phase 2 closed. Ranking-set results come later |

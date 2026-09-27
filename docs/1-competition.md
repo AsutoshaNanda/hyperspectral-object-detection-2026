@@ -42,7 +42,7 @@ Timeline (UTC), as revised by the notice:
 
 My earlier notes had an older schedule (Phase 2 on 23 to 25 Sep). This was corrected on 22 and 24 Sep.
 
-Phase 1 results post: [discussion 743224](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743224). My frozen Phase 1 score is 0.60486, rank 104 of 300. First place is 0.67179.
+Phase 1 results post: [discussion 743224](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743224). My frozen Phase 1 score is 0.60486, rank 104 of 300. It comes from my Plan D file (submitted 17 Sep), which is my best file when every submission is re-scored on all 1,000 test images. First place is 0.67179.
 
 ## Rules that shaped the work
 

@@ -6,24 +6,24 @@ Every number here comes from a saved result file, a run log, or a Kaggle submiss
 
 - Competition: https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026
 - Kaggle profile: https://www.kaggle.com/itsasup (team "Asutosha", solo)
-- Period covered: 11 Sep 2026 to 26 Sep 2026
+- Period covered: 11 Sep 2026 to 27 Sep 2026
 
 ## Bottom line
 
 | Item | Result |
 |---|---|
-| Phase 1 final score (re-scored by the organizers on all 1,000 test images) | **0.60486, rank 104 of 300** |
+| Phase 1 final score (re-scored by the organizers on all 1,000 test images) | **0.60486, rank 104 of 300** (the Plan D file from 17 Sep) |
 | 1st place, Phase 1 | 0.67179 |
-| My best public-board score (about 51% of the test images) | 0.61008 (Plan D), 0.61001 (Plan C) |
+| My best public-board score (about 51% of the test images, before 25 Sep) | 0.61008 (Plan D), 0.61001 (Plan C) |
 | My best model on my own 300-image holdout | Combo, 0.672 |
-| Same Combo on the public board | 0.59852 (0.60242 after retraining on all labelled images) |
+| Same Combo on all 1,000 test images | 0.588 (0.596 after retraining on all labelled images) |
 | Experiments planned | 110 experiment records, 227 run slots |
-| Experiments actually tried | **90**, listed one by one in [docs/4-every-experiment-tried.md](docs/4-every-experiment-tried.md): 60 done, 16 failed, 4 partly, 10 prepared but never run |
+| Experiments actually tried | **90**, listed one by one in [docs/4-every-experiment-tried.md](docs/4-every-experiment-tried.md): 62 done, 16 failed, 4 partly, 8 prepared but never run |
 | Money spent on vast.ai | about $29 (estimate, see [compute](docs/6-compute-kaggle-vastai.md)) |
-| Best score on all 1,000 test images | combo_all, 0.596 (0.595 with flip TTA) |
-| Phase 2 (ranking set) | 3 files submitted on 26 Sep (best: combo_all 0.595 on the test half); 2 more planned for 27 Sep. The ranking-set score is revealed after the close |
+| Best Phase 2 file (test half, all 1,000 test images) | Plan C with flip TTA, 0.608 |
+| Final picks for Phase 2 | Plan C (0.608) and combo_all (0.595), marked on 27 Sep. The ranking-set score is revealed after the close |
 
-**Main lesson.** I chose models using one small holdout of 300 images. On it, almost every model scored about 0.67. On Kaggle's test images the same models scored about 0.58 to 0.61, and the two tests ranked the models differently. I kept trusting the small holdout and explained the gap away. The real gap to the top teams (about 0.06) was genuine. Details: [problems and mistakes](docs/7-problems-and-mistakes.md).
+**Main lesson.** I chose models using one small holdout of 300 images. On it, almost every model scored about 0.67. On all 1,000 of Kaggle's test images the same models scored about 0.58 to 0.605, and the order changed: Plan B v2 went from last on my holdout to first on the real test, and Combo from first to third. I kept trusting the small holdout and explained the gap away. The real gap to the top teams (about 0.06) was genuine. Details: [problems and mistakes](docs/7-problems-and-mistakes.md).
 
 ## What is in this repo
 
@@ -50,19 +50,19 @@ These are only the full-length models. All 90 experiments, including the short 1
 
 All are single models. Holdout = the same 300 labelled images for every row. Public = Kaggle's public board (about 51% of the 1,000 test images). Full test = all 1,000 test images (the board after 25 Sep).
 
-| Model | What it is | Holdout mAP50-95 | Public (full test) |
+| Model | What it is | Holdout mAP50-95 | Public 51% (full test) |
 |---|---|---:|---:|
-| Plan A | YOLO26m, 16 bands, 1024 px, 80 epochs | 0.655 | 0.590 |
-| Plan B v2 | RT-DETR-L, 16 bands, 640 px, 50 epochs, image stretched to square | 0.637 | 0.608 |
-| Plan D | Plan B v2 model, keep boxes down to 0.001 confidence, up to 300 per image | not measured | 0.610 |
-| Plan C | RT-DETR-L, image padded to square instead of stretched | 0.670 | 0.607 / 0.610 |
-| Combo | Plan C + RGB-mean 16-band stem + 1 spectral-augmentation copy + 1024 px | 0.672 | 0.599 |
-| Self-training | RT-DETR-L trained on real labels + Combo's confident predictions on the test images | 0.668 | 0.584 |
+| Plan A | YOLO26m, 16 bands, 1024 px, 80 epochs | 0.655 | 0.590 (0.581) |
+| Plan B v2 | RT-DETR-L, 16 bands, 640 px, 50 epochs, image stretched to square | 0.637 | 0.608 (0.603) |
+| Plan D | Plan B v2 model, keep boxes down to 0.001 confidence, up to 300 per image | not measured | 0.610 (**0.605**) |
+| Plan C | RT-DETR-L, image padded to square instead of stretched | 0.670 | 0.607 / 0.610 (0.599 / 0.604; **0.608** with flip TTA) |
+| Combo | Plan C + RGB-mean 16-band stem + 1 spectral-augmentation copy + 1024 px | 0.672 | 0.599 (0.588) |
+| Self-training | RT-DETR-L trained on real labels + Combo's confident predictions on the test images | 0.668 | 0.584 (0.579) |
 | D-FINE-S / D-FINE-M | Other detector designs, ported to 16 bands | 0.670 / 0.672 | not submitted |
 | RT-DETRv2 | Another detector design, ported to 16 bands | never scored on the holdout (only on its own scorer, 0.776, not comparable) | not submitted |
 | Cascade R-CNN | MMDetection, ResNet-50 FPN, 16-band stem | 0.652 | not submitted |
-| combo_all | Combo recipe retrained on all 2,997 labelled images | none (no holdout left) | 0.602 (0.596) |
-| selftrain_all | Self-training recipe on all 2,997 labelled + 971 pseudo-labelled test images | none | 0.583 (0.575) |
+| combo_all | Combo recipe retrained on all 2,997 labelled images | none (no holdout left) | 0.602 (0.596; 0.595 with flip TTA) |
+| selftrain_all | Self-training recipe on all 2,997 labelled + 971 pseudo-labelled test images | none | 0.583 (0.575; 0.579 with flip TTA) |
 | selftrain_v2 | All 2,997 labelled + 993 test images pseudo-labelled by combo_all | none | (0.582) |
 | combo_st | Combo recipe on the same images as selftrain_v2 | none | (0.574) |
 
