@@ -47,7 +47,7 @@ Phase 1 results post: [discussion 743224](https://www.kaggle.com/competitions/hy
 ### What happened at the end (provisional ranking, [743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830))
 
 - **Phase 2 score = each team's best ranking-set score over all its Phase 2 files.** The organizers said this does not depend on which files were marked as final. So marking finals did not change anyone's score.
-- **Only 68 teams were ranked**, the ones with valid submissions in both phases. 232 teams did only Phase 1 and were not ranked.
+- **309 teams entered, but only 68 were ranked**: the ones with valid submissions in both phases. 232 teams did only Phase 1 and 9 did only Phase 2; they were not ranked. My rank is 46 / 309.
 - **The provisional top 15 (not 10) must send a code package** by 30 Sep 08:00 UTC. The organizers can also ask teams ranked 16th and below.
 - **Final ranking:** by 3 Oct 2026, 08:00 UTC, after code review.
 
@@ -78,4 +78,4 @@ Phase 1 results post: [discussion 743224](https://www.kaggle.com/competitions/hy
 | 22 Sep | 0.61008 | 93 | not recorded | from the discussion thread |
 | 23 Sep | 0.61008 | 99 | 0.68118 | top-10 cut-off 0.66958 |
 | 25 Sep (final Phase 1) | 0.60486 | 104 of 300 | 0.67179 | re-scored on all 1,000 test images |
-| 27 Sep (provisional final) | final 0.61085 (Phase 2: 0.61683) | **46 of 68** | 0.68624 | only teams with both phases ranked; [743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830) |
+| 27 Sep (provisional final) | final 0.61085 (Phase 2: 0.61683) | **46 / 309** | 0.68624 | only teams with both phases ranked; [743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830) |

@@ -211,6 +211,6 @@ The organizers take the best Phase 1 file re-scored on all 1,000 test images: Pl
 | Phase 1 (frozen) | 0.60486 |
 | Phase 2 (best of my Phase 2 files on the 1,000 ranking images; which file was not stated) | 0.61683 |
 | **Final** (0.5 x Phase 1 + 0.5 x Phase 2) | **0.61085** |
-| **Rank** | **46 of 68** ranked teams |
+| **Rank** | **46 / 309 teams** (309 teams entered; only the 68 that submitted in both phases received a rank) |
 
 The per-file ranking-set scores were never shown to me (Kaggle's private board was still blank when the provisional ranking came out).

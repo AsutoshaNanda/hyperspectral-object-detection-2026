@@ -12,7 +12,7 @@ Every number here comes from a saved result file, a run log, or a Kaggle submiss
 
 | Item | Result |
 |---|---|
-| **Final result (provisional, before code review)** | **Rank 46 of 68 ranked teams, final score 0.61085** ([organizers' table](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830)) |
+| **Final result (provisional, before code review)** | **Rank 46 / 309 teams, final score 0.61085** ([organizers' table](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830)) |
 | Phase 1 score (frozen, all 1,000 test images) | 0.60486 (the Plan D file from 17 Sep); 104th of 300 in Phase 1 |
 | Phase 2 score (1,000 ranking images) | 0.61683 |
 | 1st place / 10th place final score | 0.68624 / 0.67721 |
@@ -29,7 +29,7 @@ Every number here comes from a saved result file, a run log, or a Kaggle submiss
 
 ## Final result vs the top 10
 
-Provisional ranking posted by the organizers on 27 Sep ([discussion 743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830)), not yet code-reviewed. Final = 0.5 x Phase 1 + 0.5 x Phase 2. Only the 68 teams that submitted in both phases are ranked.
+Provisional ranking posted by the organizers on 27 Sep ([discussion 743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830)), not yet code-reviewed. Final = 0.5 x Phase 1 + 0.5 x Phase 2. My rank: **46 / 309 teams**. (309 teams entered; only the 68 that submitted in both phases received a rank, so the other 241 are unranked.)
 
 | Rank | Team | Phase 1 | Phase 2 | Final |
 |---:|---|---:|---:|---:|
