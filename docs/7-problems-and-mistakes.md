@@ -71,7 +71,7 @@ This is a guess from the file names on the Phase 1 results table ([743224](https
 - Work aimed at box precision (box loss, box refinement). I knew this was my weak spot but did not fix it.
 - Some names also suggest several models combined, which is against the rules; the organizers replace those scores with the team's best single-model score.
 
-My gap of about 0.06 looks mostly like model size and compute, not one missing setting. Lesson for next time: try one big modern model at a large image size early, before weeks of tuning a medium one.
+The provisional final ranking confirmed the gap: my final score was 0.61085 (46th of 68), against 0.67721 for 10th place and 0.68624 for 1st. The top 10 all scored about 0.684 to 0.701 on the ranking images, against my 0.617. My gap of about 0.066 looks mostly like model size and compute, not one missing setting. Lesson for next time: try one big modern model at a large image size early, before weeks of tuning a medium one.
 
 ## Part 2: technical problems
 

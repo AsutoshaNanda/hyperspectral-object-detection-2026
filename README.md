@@ -12,8 +12,10 @@ Every number here comes from a saved result file, a run log, or a Kaggle submiss
 
 | Item | Result |
 |---|---|
-| Phase 1 final score (re-scored by the organizers on all 1,000 test images) | **0.60486, rank 104 of 300** (the Plan D file from 17 Sep) |
-| 1st place, Phase 1 | 0.67179 |
+| **Final result (provisional, before code review)** | **Rank 46 of 68 ranked teams, final score 0.61085** ([organizers' table](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830)) |
+| Phase 1 score (frozen, all 1,000 test images) | 0.60486 (the Plan D file from 17 Sep); 104th of 300 in Phase 1 |
+| Phase 2 score (1,000 ranking images) | 0.61683 |
+| 1st place / 10th place final score | 0.68624 / 0.67721 |
 | My best public-board score (about 51% of the test images, before 25 Sep) | 0.61008 (Plan D), 0.61001 (Plan C) |
 | My best model on my own 300-image holdout | Combo, 0.672 |
 | Same Combo on all 1,000 test images | 0.588 (0.596 after retraining on all labelled images) |
@@ -21,9 +23,31 @@ Every number here comes from a saved result file, a run log, or a Kaggle submiss
 | Experiments actually tried | **90**, listed one by one in [docs/4-every-experiment-tried.md](docs/4-every-experiment-tried.md): 62 done, 16 failed, 4 partly, 8 prepared but never run |
 | Money spent on vast.ai | about $29 (estimate, see [compute](docs/6-compute-kaggle-vastai.md)) |
 | Best Phase 2 file (test half, all 1,000 test images) | Plan C with flip TTA, 0.608 |
-| Final picks for Phase 2 | Plan C (0.608) and combo_all (0.595), marked on 27 Sep. The ranking-set score is revealed after the close |
+| Final picks for Phase 2 | Plan C and combo_all, marked on 27 Sep. In the end the organizers used each team's best ranking-set score over all its Phase 2 files, so the marking did not change the result |
 
-**Main lesson.** I chose models using one small holdout of 300 images. On it, almost every model scored about 0.67. On all 1,000 of Kaggle's test images the same models scored about 0.58 to 0.605, and the order changed: Plan B v2 went from last on my holdout to first on the real test, and Combo from first to third. I kept trusting the small holdout and explained the gap away. The real gap to the top teams (about 0.06) was genuine. Details: [problems and mistakes](docs/7-problems-and-mistakes.md).
+**Main lesson.** I chose models using one small holdout of 300 images. On it, almost every model scored about 0.67. On all 1,000 of Kaggle's test images the same models scored about 0.58 to 0.605, and the order changed: Plan B v2 went from last on my holdout to first on the real test, and Combo from first to third. I kept trusting the small holdout and explained the gap away. The real gap to the top teams was genuine: about 0.066 to 10th place in the final score. Details: [problems and mistakes](docs/7-problems-and-mistakes.md).
+
+## Final result vs the top 10
+
+Provisional ranking posted by the organizers on 27 Sep ([discussion 743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830)), not yet code-reviewed. Final = 0.5 x Phase 1 + 0.5 x Phase 2. Only the 68 teams that submitted in both phases are ranked.
+
+| Rank | Team | Phase 1 | Phase 2 | Final |
+|---:|---|---:|---:|---:|
+| 1 | SAU | 0.67179 | 0.70068 | 0.68624 |
+| 2 | neuralab | 0.66658 | 0.69115 | 0.67886 |
+| 3 | Lumflux | 0.66599 | 0.69118 | 0.67859 |
+| 4 | dw2026 | 0.66600 | 0.69111 | 0.67856 |
+| 5 | deeprune | 0.66596 | 0.69111 | 0.67854 |
+| 6 | LBchaser | 0.66596 | 0.69111 | 0.67853 |
+| 7 | kernelHunter8 | 0.66590 | 0.69111 | 0.67850 |
+| 8 | kaggle_player88 | 0.66573 | 0.69108 | 0.67840 |
+| 9 | dashMatrix | 0.66466 | 0.69111 | 0.67788 |
+| 10 | HSICAS | 0.66990 | 0.68452 | 0.67721 |
+| **46** | **Asutosha (me)** | **0.60486** | **0.61683** | **0.61085** |
+
+- My ranking-set score (0.617) was a little higher than my best test-image score (0.608). The top teams rose more, from about 0.666 to about 0.69, so the gap grew slightly in Phase 2.
+- The organizers did not say which of my five Phase 2 files gave the 0.61683.
+- The final ranking is due by 3 Oct 2026, 08:00 UTC, after the top 15 are code-reviewed.
 
 ## What is in this repo
 

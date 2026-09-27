@@ -202,5 +202,15 @@ The organizers take the best Phase 1 file re-scored on all 1,000 test images: Pl
 | 27 Sep 04:42 | **Plan C** | **0.60798** (**final pick**) | 0.60371 |
 
 - Flip TTA (predicting each image normally and mirrored, then merging) changed the score by +0.004 for Plan C, +0.004 for selftrain_all and -0.001 for combo_all. The files without TTA were made earlier (Plan C's on Kaggle), so this is a close but not perfectly controlled comparison.
-- The two final picks were marked by me on Kaggle on 27 Sep. Kaggle's API does not report this, so it is from my own record.
-- The ranking-set half, which is the Phase 2 score, is only revealed after the competition closes.
+- I marked Plan C and combo_all as finals on 27 Sep (Kaggle's API does not report this, so it is from my own record). In the end it did not matter: the organizers used each team's best ranking-set score over all its Phase 2 files.
+
+### Provisional final result ([743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830))
+
+| | Score |
+|---|---:|
+| Phase 1 (frozen) | 0.60486 |
+| Phase 2 (best of my Phase 2 files on the 1,000 ranking images; which file was not stated) | 0.61683 |
+| **Final** (0.5 x Phase 1 + 0.5 x Phase 2) | **0.61085** |
+| **Rank** | **46 of 68** ranked teams |
+
+The per-file ranking-set scores were never shown to me (Kaggle's private board was still blank when the provisional ranking came out).

@@ -154,4 +154,4 @@ The Combo and Self-training models had been lost with box 1, so they were retrai
 
 Best results on the full 1,000 test images: Phase 1 file **Plan D 0.60486** (frozen as my Phase 1 score, rank 104 of 300; first place 0.67179). Phase 2 file **Plan C with flip TTA 0.60798**.
 
-**Final picks for Phase 2** (marked by me on Kaggle on 27 Sep, before the 08:00 UTC deadline): Plan C Phase 2 (0.608) and combo_all Phase 2 (0.595). Kaggle's API does not show which files are marked, so this comes from my own record. The ranking-set score is revealed after the close.
+**Final result (provisional, [743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830)):** Phase 2 score on the 1,000 ranking images **0.61683**, final score **0.61085**, **rank 46 of 68**. The organizers took my best ranking-set score over all five Phase 2 files (rows 85 to 89) and did not say which file it was. I had marked Plan C and combo_all as finals on 27 Sep, but the marking did not affect the score.

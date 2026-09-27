@@ -38,4 +38,8 @@ Times are UTC where known.
 | 26 Sep | Looked at the Phase 1 results table: several top file names suggest bigger models, bigger images and more TTA views (a guess, not proof) |
 | 27 Sep 04:40 and 04:42 | Submitted the last two Phase 2 files: selftrain_all 0.57949, Plan C **0.60798** (best Phase 2 file). Kaggle's list now shows every file re-scored on all 1,000 test images |
 | 27 Sep 04:48 | Marked the two finals: Plan C Phase 2 (0.608) and combo_all Phase 2 (0.595) |
-| 27 Sep 08:00 | Phase 2 closed. Ranking-set results come later |
+| 27 Sep 08:00 | Phase 2 closed |
+| 27 Sep 08:05 | This repo made public, after the close |
+| 27 Sep, after 09:17 | Organizers posted the provisional final ranking ([743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830)): Phase 2 0.61683, final **0.61085, rank 46 of 68**. 1st 0.68624, 10th 0.67721 |
+| 30 Sep 08:00 (scheduled) | Code packages due from the provisional top 15 (not required at rank 46) |
+| 3 Oct 08:00 at the latest (scheduled) | Final ranking after code review |

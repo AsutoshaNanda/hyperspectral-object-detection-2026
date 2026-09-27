@@ -28,7 +28,7 @@ This changed during the competition (Phase 2 notice, [discussion 742487](https:/
 
 - **Final = 0.5 x Phase 1 + 0.5 x Phase 2.**
 - Phase 1 = my best test-set submission made before the freeze, re-scored on all 1,000 test images. The public board only showed about 51% of them.
-- Phase 2 = the ranking-set score of the submission I mark as final (up to 2). A Phase 2 file must contain predictions for both the 1,000 test and the 1,000 ranking images, or the ranking half scores zero.
+- Phase 2 = the ranking-set score of the submission I mark as final (up to 2), as announced. (In the provisional ranking the organizers actually used each team's best ranking-set score over all its Phase 2 files; see below.) A Phase 2 file must contain predictions for both the 1,000 test and the 1,000 ranking images, or the ranking half scores zero.
 - Maximum 3 submissions per day.
 
 Timeline (UTC), as revised by the notice:
@@ -43,6 +43,13 @@ Timeline (UTC), as revised by the notice:
 My earlier notes had an older schedule (Phase 2 on 23 to 25 Sep). This was corrected on 22 and 24 Sep.
 
 Phase 1 results post: [discussion 743224](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743224). My frozen Phase 1 score is 0.60486, rank 104 of 300. It comes from my Plan D file (submitted 17 Sep), which is my best file when every submission is re-scored on all 1,000 test images. First place is 0.67179.
+
+### What happened at the end (provisional ranking, [743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830))
+
+- **Phase 2 score = each team's best ranking-set score over all its Phase 2 files.** The organizers said this does not depend on which files were marked as final. So marking finals did not change anyone's score.
+- **Only 68 teams were ranked**, the ones with valid submissions in both phases. 232 teams did only Phase 1 and were not ranked.
+- **The provisional top 15 (not 10) must send a code package** by 30 Sep 08:00 UTC. The organizers can also ask teams ranked 16th and below.
+- **Final ranking:** by 3 Oct 2026, 08:00 UTC, after code review.
 
 ## Rules that shaped the work
 
@@ -71,3 +78,4 @@ Phase 1 results post: [discussion 743224](https://www.kaggle.com/competitions/hy
 | 22 Sep | 0.61008 | 93 | not recorded | from the discussion thread |
 | 23 Sep | 0.61008 | 99 | 0.68118 | top-10 cut-off 0.66958 |
 | 25 Sep (final Phase 1) | 0.60486 | 104 of 300 | 0.67179 | re-scored on all 1,000 test images |
+| 27 Sep (provisional final) | final 0.61085 (Phase 2: 0.61683) | **46 of 68** | 0.68624 | only teams with both phases ranked; [743830](https://www.kaggle.com/competitions/hyperspectral-object-detection-challenge-2026/discussion/743830) |
